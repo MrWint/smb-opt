@@ -1,0 +1,9 @@
+[package]
+name = "rusttest"
+version = "0.1.0"
+authors = ["chris"]
+
+[dependencies]
+bitflags = "1.0.1"
+bitpack = "0.2.1"
+typenum = "1.9.0"
