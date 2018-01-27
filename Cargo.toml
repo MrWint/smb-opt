@@ -1,5 +1,5 @@
 [package]
-name = "rusttest"
+name = "smb-opt"
 version = "0.1.0"
 authors = ["chris"]
 
