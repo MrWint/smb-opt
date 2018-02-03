@@ -3,6 +3,7 @@
 #[macro_use]
 extern crate bitflags;
 extern crate bitpack;
+extern crate time;
 extern crate typenum;
 
 use case::Case;

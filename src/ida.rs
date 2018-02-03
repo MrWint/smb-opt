@@ -4,6 +4,7 @@ use options::{Options, Platform};
 use state::{Dist,PlayerState, State};
 use std::marker::PhantomData;
 use store::StateStore;
+use time;
 
 pub trait InputFetcher {
   fn valid_next_inputs(s: &State) -> Vec<Input>;
@@ -105,6 +106,8 @@ pub struct IDA<S: StateStore, E: Emu, G: SearchGoal, I: InputFetcher> {
   _emu: PhantomData<E>,
   _input_fetcher: PhantomData<I>,
   num_visits: u64,
+  last_update_time_ns: u64,
+  last_update_seen: usize,
 }
 impl<S: StateStore, E: Emu, G: SearchGoal, I: InputFetcher> Search for IDA<S, E, G, I> {
   fn find_first_solution(mut start_states: Vec<State>, initial_max_allowed_steps: Dist, search_space_size_hint: usize) -> SearchResult {
@@ -121,6 +124,8 @@ impl<S: StateStore, E: Emu, G: SearchGoal, I: InputFetcher> IDA<S, E, G, I> {
       _emu: PhantomData,
       _input_fetcher: PhantomData,
       num_visits: 0,
+      last_update_time_ns: 0,
+      last_update_seen: 0,
     }
   }
   fn find_first_solution_rec(&mut self, mut s: State, steps_already_taken: Dist, max_allowed_steps: Dist) -> SearchResult {
@@ -140,7 +145,13 @@ impl<S: StateStore, E: Emu, G: SearchGoal, I: InputFetcher> IDA<S, E, G, I> {
 
     self.num_visits += 1;
     if self.num_visits % 1000000 == 0 {
-      println!("distance: {}, heuristic: {}, limit: {}, seen: {}", steps_already_taken, heuristic_distance_to_goal, max_allowed_steps, self.visited_states.len());
+      let new_update_time_ns = time::precise_time_ns();
+      let new_update_seen = self.visited_states.len();
+      let elapsed_time_ms = (new_update_time_ns - self.last_update_time_ns) / 1000000;
+      let seen_per_second = if new_update_time_ns == self.last_update_time_ns { ::std::u64::MAX } else { (new_update_seen - self.last_update_seen) as u64 * 1000000000 / (new_update_time_ns - self.last_update_time_ns) };
+      println!("distance: {}, heuristic: {}, limit: {}, seen: {}, time: {}ms, speed: {}/s", steps_already_taken, heuristic_distance_to_goal, max_allowed_steps, new_update_seen, elapsed_time_ms, seen_per_second);
+      self.last_update_time_ns = new_update_time_ns;
+      self.last_update_seen = new_update_seen;
     }
 
     for input in I::valid_next_inputs(&s) {
@@ -167,6 +178,7 @@ impl<S: StateStore, E: Emu, G: SearchGoal, I: InputFetcher> IDA<S, E, G, I> {
   }
   fn find_first_solution(mut self, start_states: Vec<State>, initial_max_allowed_steps: Dist) -> SearchResult {
     let mut max_allowed_steps = initial_max_allowed_steps;
+    self.last_update_time_ns = time::precise_time_ns();
 
     loop {
       println!("search max distance  {}", max_allowed_steps);
