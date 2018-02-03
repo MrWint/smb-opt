@@ -79,7 +79,7 @@ impl<O: Options> InputFetcher for SmbInputFetcher<O> {
 }
 
 #[allow(dead_code)]
-struct AllInputs;
+pub struct AllInputs;
 impl InputFetcher for AllInputs {
   fn valid_next_inputs(_: &State) -> Vec<Input> {
     let mut inputs = Vec::with_capacity(256);
@@ -97,7 +97,7 @@ pub enum SearchResult {
 }
 
 pub trait Search {
-  fn find_first_solution(start_states: Vec<State>, search_space_size_hint: usize) -> SearchResult;
+  fn find_first_solution(start_states: Vec<State>, initial_max_allowed_steps: Dist, search_space_size_hint: usize) -> SearchResult;
 }
 pub struct IDA<S: StateStore, E: Emu, G: SearchGoal, I: InputFetcher> {
   visited_states: S,
@@ -107,9 +107,9 @@ pub struct IDA<S: StateStore, E: Emu, G: SearchGoal, I: InputFetcher> {
   num_visits: u64,
 }
 impl<S: StateStore, E: Emu, G: SearchGoal, I: InputFetcher> Search for IDA<S, E, G, I> {
-  fn find_first_solution(start_states: Vec<State>, search_space_size_hint: usize) -> SearchResult {
+  fn find_first_solution(mut start_states: Vec<State>, initial_max_allowed_steps: Dist, search_space_size_hint: usize) -> SearchResult {
     let emu = Self::new(search_space_size_hint);
-    let initial_max_allowed_steps = start_states.iter().filter_map(|s| emu.search_goal.distance_to_goal_heuristic(&s, 0)).min().unwrap();
+    let initial_max_allowed_steps = ::std::cmp::max(initial_max_allowed_steps, start_states.iter_mut().filter_map(|mut s| emu.search_goal.distance_to_goal_heuristic(&mut s, 0)).min().unwrap());
     emu.find_first_solution(start_states, initial_max_allowed_steps)
   }
 }
@@ -125,19 +125,18 @@ impl<S: StateStore, E: Emu, G: SearchGoal, I: InputFetcher> IDA<S, E, G, I> {
   }
   fn find_first_solution_rec(&mut self, mut s: State, steps_already_taken: Dist, max_allowed_steps: Dist) -> SearchResult {
     let heuristic_distance_to_goal;
-    if steps_already_taken >= max_allowed_steps { return SearchResult::NotFound; }
-    if let Some(distance) = self.search_goal.distance_to_goal_heuristic(&s, steps_already_taken) {
+    if let Some(distance) = self.search_goal.distance_to_goal_heuristic(&mut s, steps_already_taken) {
+      self.search_goal.track_metric(&s);
       heuristic_distance_to_goal = distance;
     } else {
       return SearchResult::NotFound;
     }
-    if steps_already_taken + heuristic_distance_to_goal > max_allowed_steps // out of steps
+    if steps_already_taken >= max_allowed_steps
+        || steps_already_taken + heuristic_distance_to_goal > max_allowed_steps // out of steps
         || s.y_pos >= 0x1c500 // too low
         || !self.visited_states.check_and_update_dist(&s, steps_already_taken) {
       return SearchResult::NotFound;
     }
-
-    self.search_goal.track_metric(&mut s);
 
     self.num_visits += 1;
     if self.num_visits % 1000000 == 0 {

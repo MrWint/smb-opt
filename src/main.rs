@@ -17,6 +17,6 @@ mod state;
 mod store;
 
 fn main() {
-  case::w11::W11SubSidePipeEntry::run();
+  case::w13::W13PowerupBig::run();
   // case::w11::EmulatorTesting::run();
 }

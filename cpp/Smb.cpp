@@ -5,7 +5,7 @@
 //#define SWIMMING
 //#define RUNNINGTIMER
 //#define BIG
-//#define COLLECT_POWERUP
+#define COLLECT_POWERUP
 
 #include <cmath>
 #include <iostream>
@@ -112,7 +112,7 @@ int distanceToGoalHeuristic(State& s, int stepsAlreadyTaken) {
 //  return max(minStepsIntoBounds(s, 0x39400, -oo, oo, oo), 1); // 1-1 pipe entry
 //  return minStepsIntoBounds(s, 0x91e0, -oo, oo, oo); // 1-1-sub speed up
 //  return minStepsIntoBounds(s, 0x4050, 0x18800, oo, oo); // 1-1-sub clip test
-  return max(minStepsIntoBounds(s, 0xc300, 0x1b000, oo, oo), 1); // 1-1-sub pipe entry
+//  return max(minStepsIntoBounds(s, 0xc300, 0x1b000, oo, oo), 1); // 1-1-sub pipe entry
 //  return minStepsIntoBounds(s, 0xbc110, -oo, oo, oo); // 1-1-pipe speed up
 //  return minStepsIntoBounds(s, 0xbc060, -oo, oo, oo); // 1-1-pipe speed up PAL
 //  return max(minStepsIntoBounds(s, 0xc5600, 0x1a200, oo, oo), 1); // 1-1 flag
@@ -152,21 +152,21 @@ int distanceToGoalHeuristic(State& s, int stepsAlreadyTaken) {
 //    return max(minStepsIntoBounds(s, -oo, 0x18000, 0xb2cf0, oo), 1); // 1-2-tmp pipe entry
 //  }
 //  return minStepsIntoBounds(s, 0xBB090, -oo, oo, oo); // 1-1-anyPipe speed up
-//  { // for 1-3-powerup collection
-//    const int maxStepsToHit = 21+3;
-//    if ((stepsAlreadyTaken < maxStepsToHit-3 && s.powerupBlockHit) || (stepsAlreadyTaken >= maxStepsToHit && !s.powerupBlockHit)) return oo; // not hit powerup block in valid timeframe
-//
-//    for (int i = 0; i < 12; i++)
-////      if (!s.powerupCollected && (stepsAlreadyTaken == maxStepsToHit + 16 + 4*i || stepsAlreadyTaken == maxStepsToHit + 18 + 4*i) && (s.yPos + yPosOffset) < 0x1a100 - 0x100*i - (s.crouched ? 0xc00 : 0) && (s.xPos << 4) >= 0x3a400 && (s.xPos << 4) < 0x3bd00) s.powerupCollected = true, s.playerState = 0;
-//      if (!s.powerupCollected && (stepsAlreadyTaken == maxStepsToHit + 16 + 4*i || stepsAlreadyTaken == maxStepsToHit + 18 + 4*i) && (s.yPos + yPosOffset) < 0x19500 - 0x100*i && (s.xPos << 4) >= 0x3a500 && (s.xPos << 4) < 0x3bc00) s.powerupCollected = true, s.playerState = 0;
-//
-//    if ((s.xPos << 4) >= 0x3c000 && !s.powerupCollected) return oo; // missed powerup collection
-////    return minStepsIntoBounds(s, 0x3e0a0, -oo, oo, oo); // small
-//    return minStepsIntoBounds(s, 0x3ed70, -oo, oo, oo); // small alt
-////    return minStepsIntoBounds(s, 0x3ed20, -oo, oo, oo); // big TODO
-////    return minStepsIntoBounds(s, 0x3fe60, -oo, oo, oo); // big alt
-////    return minStepsIntoBounds(s, maxXPos + 0x10, -oo, oo, oo);
-//  }
+ { // for 1-3-powerup collection
+   const int maxStepsToHit = 21;//+3;
+   if ((stepsAlreadyTaken < maxStepsToHit-3 && s.powerupBlockHit) || (stepsAlreadyTaken >= maxStepsToHit && !s.powerupBlockHit)) return oo; // not hit powerup block in valid timeframe
+
+   for (int i = 0; i < 12; i++)
+//      if (!s.powerupCollected && (stepsAlreadyTaken == maxStepsToHit + 16 + 4*i || stepsAlreadyTaken == maxStepsToHit + 18 + 4*i) && (s.yPos + yPosOffset) < 0x1a100 - 0x100*i - (s.crouched ? 0xc00 : 0) && (s.xPos << 4) >= 0x3a400 && (s.xPos << 4) < 0x3bd00) s.powerupCollected = true, s.playerState = 0;
+     if (!s.powerupCollected && (stepsAlreadyTaken == maxStepsToHit + 16 + 4*i || stepsAlreadyTaken == maxStepsToHit + 18 + 4*i) && (s.yPos + yPosOffset) < 0x19500 - 0x100*i && (s.xPos << 4) >= 0x3a500 && (s.xPos << 4) < 0x3bc00) s.powerupCollected = true, s.playerState = 0;
+
+   if ((s.xPos << 4) >= 0x3c000 && !s.powerupCollected) return oo; // missed powerup collection
+//    return minStepsIntoBounds(s, 0x3e0a0, -oo, oo, oo); // small
+   return minStepsIntoBounds(s, 0x3ed60, -oo, oo, oo); // small alt
+//    return minStepsIntoBounds(s, 0x3ed20, -oo, oo, oo); // big TODO
+//    return minStepsIntoBounds(s, 0x3fe60, -oo, oo, oo); // big alt
+//    return minStepsIntoBounds(s, maxXPos + 0x10, -oo, oo, oo);
+ }
 //  { // for 1-3-floor clip
 //    if ((s.xPos << 4) >= 0x80400 && s.yPos + yPosOffset < 0x1b100) return oo; // not in ground
 //    const int stepsOffset = stepsAlreadyTaken + 0;
@@ -260,8 +260,8 @@ bool isGoalBlockHit(State& s, int cx, int cy, int cv) {
 //  }
 
 //  return cx == 0x39 && cy == 7 && cv == 0x10; // 1-1 vert pipe
-  return cx == 13 && cy == 10 && cv == 0x1f; // 1-1-sub side pipe
-//  return cx == 0xc6 && cy == 9 && cv == 0x25 && s.yPos >= (0x1a200 - yPosOffset) && (s.xPos & 0xf) >= 0x3; // 1-1 flag pole
+//  return cx == 13 && cy == 10 && cv == 0x1f; // 1-1-sub side pipe
+//  return cx == 0xc6 && cy == 9 && cv == 0x25 && s.yPos >= (0x1a200 - yPosOffset) && (s.xPos & 0xf) >= 0x7; // 1-1 flag pole
 //  return cx == 0xc6 && cy == 9 && cv == 0x25 && s.yPos >= (0x1a600 - yPosOffset); // 1-1 flag pole PAL
 //  return s.leftScreenEdgePos < 0x10 && cx == 0xb2 && cy == 8 && cv == 0x10; // 1-2 vert pipe
 //  return cx == 0xe1 && cy == 9 && cv == 0x25 && s.yPos >= (0x1a600 - yPosOffset); // 4-1 flag pole PAL
@@ -291,9 +291,9 @@ int main() {
   cout << "State size: " << sizeof(State) << endl;
   cout << "StateDist size: " << sizeof(StateDist) << endl;
 
-  bb = bb11sub;
+  bb = bb13;
   bb.print();
-	State s = s11sub;
+	State s = s13powerup;
 //	s.yPos = 0x1c0a8 - yPosOffset;
 //  {
 //    s.yPos -= 0x100;
@@ -301,7 +301,7 @@ int main() {
 //    s.xSpd = 0x3040 >> 2;
 //  }
 
-//  for (int i = 0; i < 1; i++) s = Emu(s).runStep(L | A);
+//  for (int i = 0; i < 12; i++) s = Emu(s).runStep(B | R);
 //  for (int i = 0; i < 1; i++) s = Emu(s).runStep(L);
 //  for (int i = 0; i < 2; i++) s = Emu(s).runStep(0);
 //  for (int i = 0; i < 4; i++) s = Emu(s).runStep(R);
@@ -392,7 +392,7 @@ int main() {
 //  ss = withSmallerXPos(ss, 7);
 //  ss = withFacingDirs(ss);
   cout << "Initial state size: " << dec << ss.size() << endl;
-	vector<int> inputs = IDDFS(ss);
+	vector<int> inputs = IDDFS(ss, 65);
 
 	printRLE(inputs);
 

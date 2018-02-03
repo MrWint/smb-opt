@@ -395,7 +395,14 @@ impl<O: Options, B: BlockBuffer> SmbEmu<O, B> {
       return EmuResult::Success;
     } else if is_climb(cv) {
       if (self.s.x_pos & 0x0f00) >= 0x600 && (self.s.x_pos & 0x0f00) < 0xa00 {
-        return if cv == 0x24 || cv == 0x25 { EmuResult::StateChangeFlag(cx, cy) } else { EmuResult::HitVine(cx, cy) }
+        return if cv == 0x24 || cv == 0x25 { // Hit flag
+          self.s.facing_dir = Dir::RIGHT;
+          self.put_player_on_vine(cx);
+          EmuResult::StateChangeFlag(cx, cy)
+        } else { // Hit vine
+          self.put_player_on_vine(cx);
+          if cv == 0x26 && (self.s.y_pos & 0xff00) < 0x2000 { EmuResult::StateChangeVineAutoclimb(cx, cy) } else { EmuResult::HitVine(cx, cy) }
+        }
       }
     } else if is_coin(cv) {
       O::CoinHandler::collect_coin(&mut self.s, cx, cy);
@@ -406,6 +413,23 @@ impl<O: Options, B: BlockBuffer> SmbEmu<O, B> {
       self.impede_player_move(moving_dir);
     }
     EmuResult::Success
+  }
+  fn put_player_on_vine(&mut self, cx: usize) {
+    const CLIMB_X_POS_ADDER: [i32; 4] = [0x8a, 0xf9, 0x7, 0xff];
+    const CLIMB_PAGE_LOC_ADDER: [i32; 4] = [0x7, 0xff, 0x0, 0x18];
+
+    self.s.player_state = PlayerState::CLIMBING;
+    self.s.x_spd = 0;
+    if O::TRACK_SCROLL_POS && ((self.s.x_pos >> 8) - self.s.left_screen_edge_pos as i32) & 0xff < 16 { self.s.facing_dir = Dir::LEFT; }
+    let x_pos = (((cx as i32) << 4) + CLIMB_X_POS_ADDER[self.s.facing_dir.bits() as usize]) & 0xff;
+    let x_page_loc = if cx & 0xf != 0 { self.s.x_pos >> 16 } else {
+      let left_screen_edge_pos: u8 = if O::TRACK_SCROLL_POS { self.s.left_screen_edge_pos } else { (((self.s.x_pos >> 8) - 0x70) & 0xff) as u8 }; // assume middle of screen if scroll is not tracked
+      let x_pos_byte: u8 = ((self.s.x_pos >> 8) & 0xff) as u8;
+      let left_screen_page_loc = if left_screen_edge_pos <= x_pos_byte { self.s.x_pos >> 16 } else { (self.s.x_pos >> 16) - 1 };
+      let right_screen_page_loc = if left_screen_edge_pos == 0 { left_screen_page_loc } else { left_screen_page_loc + 1 };
+      (right_screen_page_loc + CLIMB_PAGE_LOC_ADDER[self.s.facing_dir.bits() as usize]) & 0xff
+    };
+    self.s.x_pos = (self.s.x_pos & 0xff) | (x_pos << 8) | (x_page_loc << 16);
   }
   fn impede_player_move(&mut self, moving_dir: Dir) -> () {
     if moving_dir == Dir::RIGHT && self.s.x_spd >= 0 {
@@ -438,6 +462,7 @@ pub enum EmuResult {
   StateChangeVerticalPipe(usize, usize),
   StateChangeSidePipe(usize, usize),
   StateChangeFlag(usize, usize),
+  StateChangeVineAutoclimb(usize, usize),
   HitVine(usize, usize),
   InvalidStateFallingWithClearedYposFractionals,
 }

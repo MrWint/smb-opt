@@ -9,7 +9,7 @@ use std::marker::PhantomData;
 
 pub trait SearchGoal {
   fn new() -> Self;
-  fn distance_to_goal_heuristic(&self, s: &State, steps_already_taken: Dist) -> Option<Dist>;
+  fn distance_to_goal_heuristic(&self, s: &mut State, steps_already_taken: Dist) -> Option<Dist>;
   fn is_goal_state(&self, s: &State, emu_result: &EmuResult) -> bool;
 
   fn track_metric(&mut self, _: &State) -> () {}
@@ -20,7 +20,7 @@ pub trait SearchGoal {
 pub struct ImpossibleSearchGoal;
 impl SearchGoal for ImpossibleSearchGoal {
   fn new() -> Self { return Self {}; }
-  fn distance_to_goal_heuristic(&self, _: &State, _: Dist) -> Option<Dist> { Some(0) }
+  fn distance_to_goal_heuristic(&self, _: &mut State, _: Dist) -> Option<Dist> { Some(0) }
   fn is_goal_state(&self, _: &State, _: &EmuResult) -> bool { false }
 }
 
@@ -31,7 +31,7 @@ pub struct MaxXPosMetric<P: Platform> {
 }
 impl<P: Platform> SearchGoal for MaxXPosMetric<P> {
   fn new() -> Self { MaxXPosMetric { max_x_pos: ::std::i32::MIN, _platform: PhantomData } }
-  fn distance_to_goal_heuristic(&self, s: &State, _: Dist) -> Option<Dist> {
+  fn distance_to_goal_heuristic(&self, s: &mut State, _: Dist) -> Option<Dist> {
     Some(min_x_pos_heuristic::<P>(s, self.max_x_pos + 0x10))
   }
   fn is_goal_state(&self, _: &State, _: &EmuResult) -> bool { false }
