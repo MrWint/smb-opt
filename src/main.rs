@@ -1,8 +1,12 @@
 #![feature(associated_type_defaults)]
+#![feature(fixed_size_array)]
 
 #[macro_use]
 extern crate bitflags;
 extern crate bitpack;
+extern crate core;
+#[macro_use]
+extern crate lazy_static;
 extern crate time;
 extern crate typenum;
 
@@ -18,6 +22,5 @@ mod state;
 mod store;
 
 fn main() {
-  case::w13::W13PowerupBig::run();
-  // case::w11::EmulatorTesting::run();
+  case::w21::W21ScreenScrollBlock3PipeClip::run();
 }

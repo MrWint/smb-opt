@@ -9,45 +9,38 @@ pub trait Options {
   type CoinHandler: CoinHandler;
   type PowerupHandler: PowerupHandler;
   type PlayerSize: PlayerSize;
-  type PlayerSwimming: PlayerSwimming;
+  type Swim: Swim;
   type RunningTimer: RunningTimer;
   type ScrollPos: ScrollPos;
-
-  const IS_SWIMMING: bool;
-  const USE_RUNNING_TIMER: bool;
-  const CLEAR_Y_POS_FRACTIONALS: bool;
-  const TRACK_SCROLL_POS: bool;
-  fn is_big(&State) -> bool;
-  fn enter_vertical_pipe(cx: usize, cy: usize) -> bool;
+  type Parity: Parity;
+  type VerticalPipeHandler: VerticalPipeHandler;
+  type YPosFractionalBehavior: YPosFractionalBehavior;
 }
 #[allow(dead_code)]
-pub struct SmbOptions<Size: PlayerSize, Swim: PlayerSwimming, RunT: RunningTimer, YPFB: YPosFractionalBehavior, ScrP: ScrollPos, Plat: Platform, CoiH: CoinHandler, PowH: PowerupHandler, VerP: VerticalPipeHandler> {
+pub struct SmbOptions<Size: PlayerSize, Swi: Swim, RunT: RunningTimer, YPFB: YPosFractionalBehavior, ScrP: ScrollPos, Par: Parity, Plat: Platform, CoiH: CoinHandler, PowH: PowerupHandler, VerP: VerticalPipeHandler> {
   _player_size: PhantomData<Size>,
-  _player_swimming: PhantomData<Swim>,
+  _player_swimming: PhantomData<Swi>,
   _running_timer: PhantomData<RunT>,
   _ypfb: PhantomData<YPFB>,
   _scroll_pos: PhantomData<ScrP>,
+  _parity: PhantomData<Par>,
   _platform: PhantomData<Plat>,
   _coin_handler: PhantomData<CoiH>,
   _powerup_handler: PhantomData<PowH>,
   _vertical_pipe_handler: PhantomData<VerP>,
   _void: Void,
 }
-impl<Size: PlayerSize, Swim: PlayerSwimming, RunT: RunningTimer, YPFB: YPosFractionalBehavior, ScrP: ScrollPos, Plat: Platform, CoiH: CoinHandler, PowH: PowerupHandler, VerP: VerticalPipeHandler> Options for SmbOptions<Size, Swim, RunT, YPFB, ScrP, Plat, CoiH, PowH, VerP> {
+impl<Size: PlayerSize, Swi: Swim, RunT: RunningTimer, YPFB: YPosFractionalBehavior, ScrP: ScrollPos, Par: Parity, Plat: Platform, CoiH: CoinHandler, PowH: PowerupHandler, VerP: VerticalPipeHandler> Options for SmbOptions<Size, Swi, RunT, YPFB, ScrP, Par, Plat, CoiH, PowH, VerP> {
   type Platform = Plat;
   type CoinHandler = CoiH;
   type PowerupHandler = PowH;
   type PlayerSize = Size;
-  type PlayerSwimming = Swim;
+  type Swim = Swi;
   type RunningTimer = RunT;
   type ScrollPos = ScrP;
-
-  const IS_SWIMMING: bool = Swim::IS_SWIMMING;
-  const USE_RUNNING_TIMER: bool = RunT::USE_RUNNING_TIMER;
-  const CLEAR_Y_POS_FRACTIONALS: bool = YPFB::CLEAR_Y_POS_FRACTIONALS;
-  const TRACK_SCROLL_POS: bool = ScrP::TRACK_SCROLL_POS;
-  fn is_big(s: &State) -> bool { Size::is_big(s) }
-  fn enter_vertical_pipe(cx: usize, cy: usize) -> bool { VerP::enter_vertical_pipe(cx, cy) }
+  type Parity = Par;
+  type VerticalPipeHandler = VerP;
+  type YPosFractionalBehavior = YPFB;
 }
 
 pub trait PlayerSize {
@@ -130,6 +123,13 @@ impl<X: Unsigned, Y: Unsigned> PowerupHandler for SinglePowerupHandler<X, Y> {
     if cx == X::to_usize() && cy == Y::to_usize() { s.powerup_block_hit = true };
   }
 }
+#[allow(dead_code)]
+pub enum ImaginaryPowerup {}
+impl PowerupHandler for ImaginaryPowerup {
+  const POWERUP_HANDLER_BITS: usize = 2;
+  fn is_activated_powerup_block(_: &State, _: usize, _: usize) -> bool { false }
+  fn activate_powerup_block(_: &mut State, _: usize, _: usize) -> () {}
+}
 
 pub trait VerticalPipeHandler {
   fn enter_vertical_pipe(cx: usize, cy: usize) -> bool;
@@ -151,19 +151,19 @@ impl<X: Unsigned, Y: Unsigned> VerticalPipeHandler for EnterVerticalPipe<X, Y> {
   }
 }
 
-pub trait PlayerSwimming {
+pub trait Swim {
   const IS_SWIMMING: bool;
   const SWIMMING_BITS: usize;
 }
 #[allow(dead_code)]
 pub enum NotSwimming {}
-impl PlayerSwimming for NotSwimming {
+impl Swim for NotSwimming {
   const IS_SWIMMING: bool = false;
   const SWIMMING_BITS: usize = 0;
 }
 #[allow(dead_code)]
 pub enum Swimming {}
-impl PlayerSwimming for Swimming {
+impl Swim for Swimming {
   const IS_SWIMMING: bool = true;
   const SWIMMING_BITS: usize = 5;
 }
@@ -214,6 +214,41 @@ pub enum WithScrollPos {}
 impl ScrollPos for WithScrollPos {
   const TRACK_SCROLL_POS: bool = true;
   const SCROLL_POS_BITS: usize = 12;
+}
+
+pub trait Parity {
+  const PARITY: u8;
+  const PARITY_BITS: usize;
+}
+#[allow(dead_code)]
+pub enum NoParity {}
+impl Parity for NoParity {
+  const PARITY: u8 = 1;
+  const PARITY_BITS: usize = 0;
+}
+#[allow(dead_code)]
+pub enum Parity2 {}
+impl Parity for Parity2 {
+  const PARITY: u8 = 2;
+  const PARITY_BITS: usize = 1;
+}
+#[allow(dead_code)]
+pub enum Parity3 {}
+impl Parity for Parity3 {
+  const PARITY: u8 = 3;
+  const PARITY_BITS: usize = 2;
+}
+#[allow(dead_code)]
+pub enum Parity4 {}
+impl Parity for Parity4 {
+  const PARITY: u8 = 4;
+  const PARITY_BITS: usize = 2;
+}
+#[allow(dead_code)]
+pub enum Parity8 {}
+impl Parity for Parity8 {
+  const PARITY: u8 = 8;
+  const PARITY_BITS: usize = 3;
 }
 
 pub trait Platform {

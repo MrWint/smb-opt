@@ -2,7 +2,7 @@ use blockbuffer::BlockBuffer;
 use blockbuffer::util::*;
 use state::{Dir,PlayerState,State};
 use std::marker::PhantomData;
-use options::{CoinHandler, Options, Platform, PowerupHandler};
+use options::*;
 
 
 bitflags! {
@@ -120,21 +120,22 @@ impl<O: Options, B: BlockBuffer> SmbEmu<O, B> {
   }
   fn run_step(mut self) -> (State, EmuResult) {
     self.started_on_ground = self.s.is_on_ground();
-    if O::USE_RUNNING_TIMER && self.s.running_timer > 0 { self.s.running_timer -= 1; }
+    if O::RunningTimer::USE_RUNNING_TIMER && self.s.running_timer > 0 { self.s.running_timer -= 1; }
 
     let result = self.player_ctrl_routine();
 
-    if O::TRACK_SCROLL_POS && self.side_collision { self.s.side_collision_timer = 0xf; }
-    else if O::TRACK_SCROLL_POS && self.s.side_collision_timer > 0 { self.s.side_collision_timer -= 1; }
+    if O::ScrollPos::TRACK_SCROLL_POS && self.side_collision { self.s.side_collision_timer = 0xf; }
+    else if O::ScrollPos::TRACK_SCROLL_POS && self.s.side_collision_timer > 0 { self.s.side_collision_timer -= 1; }
 
-    if O::IS_SWIMMING && self.started_jump { self.s.jump_swim_timer = 0x1f; }
-    else if O::IS_SWIMMING && self.s.jump_swim_timer > 0 { self.s.jump_swim_timer -= 1; }
+    if O::Swim::IS_SWIMMING && self.started_jump { self.s.jump_swim_timer = 0x1f; }
+    else if O::Swim::IS_SWIMMING && self.s.jump_swim_timer > 0 { self.s.jump_swim_timer -= 1; }
 
-    if O::CLEAR_Y_POS_FRACTIONALS && self.s.is_on_ground() { self.s.y_pos &= 0xffff00; self.s.v_force_down = O::Platform::V_FORCE_AREA_INIT; }
+    if O::YPosFractionalBehavior::CLEAR_Y_POS_FRACTIONALS && self.s.is_on_ground() { self.s.y_pos &= 0xffff00; self.s.v_force_down = O::Platform::V_FORCE_AREA_INIT; }
     if self.s.player_state != PlayerState::JUMPING { self.s.v_force = self.s.v_force_down; } // only needed for JumpSwim, set whenever entered
-    if O::CLEAR_Y_POS_FRACTIONALS && self.started_on_ground && self.s.player_state == PlayerState::FALLING { // ran off edge with cleared fractional
+    if O::YPosFractionalBehavior::CLEAR_Y_POS_FRACTIONALS && self.started_on_ground && self.s.player_state == PlayerState::FALLING { // ran off edge with cleared fractional
       return (self.s, EmuResult::InvalidStateFallingWithClearedYposFractionals);
     }
+    self.s.parity = (self.s.parity + 1) % O::Parity::PARITY;
 
     (self.s, result)
   }
@@ -155,7 +156,7 @@ impl<O: Options, B: BlockBuffer> SmbEmu<O, B> {
     self.player_bg_collision()
   }
   fn player_movement_subs(&mut self) -> () {
-    if O::is_big(&self.s) && self.s.is_on_ground() {
+    if O::PlayerSize::is_big(&self.s) && self.s.is_on_ground() {
       self.s.is_crouching = self.joypad_ud.contains(Input::DOWN);
     }
 
@@ -171,7 +172,7 @@ impl<O: Options, B: BlockBuffer> SmbEmu<O, B> {
       }
       PlayerState::JUMPING => {
         if self.s.y_spd >= 0 || (!self.joypad.contains(Input::A) && !self.started_jump) { self.s.v_force = self.s.v_force_down; }
-        if O::IS_SWIMMING {
+        if O::Swim::IS_SWIMMING {
           self.get_player_anim_speed();
           if self.s.y_pos < 0x11400 { self.s.v_force = O::Platform::V_FORCE_SWIM_TOO_HIGH; }
           if !self.joypad_lr.is_empty() { self.s.facing_dir = self.joypad_lr; }
@@ -193,11 +194,11 @@ impl<O: Options, B: BlockBuffer> SmbEmu<O, B> {
   }
   fn player_physics_sub(&mut self) -> () {
     // handle starting jumps
-    if self.joypad.contains(Input::A) && (self.s.is_on_ground() || (O::IS_SWIMMING && (self.s.jump_swim_timer != 0 || self.s.y_spd >= 0))) {
+    if self.joypad.contains(Input::A) && (self.s.is_on_ground() || (O::Swim::IS_SWIMMING && (self.s.jump_swim_timer != 0 || self.s.y_spd >= 0))) {
       self.s.y_pos &= 0xffff00; // clear fractional yPos
       self.started_jump = true;
       self.s.player_state = PlayerState::JUMPING;
-      if O::IS_SWIMMING {
+      if O::Swim::IS_SWIMMING {
         self.s.v_force = O::Platform::V_FORCE_JUMP_SWIMMING;
         self.s.v_force_down = O::Platform::V_FORCE_FALL_SWIMMING;
         self.s.y_spd = O::Platform::JUMP_VELOCITY_SWIM;
@@ -218,8 +219,8 @@ impl<O: Options, B: BlockBuffer> SmbEmu<O, B> {
     }
 
     // X_Physics
-    let is_running: bool = !O::IS_SWIMMING && self.s.is_on_ground() && self.joypad_lr == self.s.moving_dir && self.joypad.contains(Input::B);
-    if O::USE_RUNNING_TIMER && is_running { self.s.running_timer = 0xa; }
+    let is_running: bool = !O::Swim::IS_SWIMMING && self.s.is_on_ground() && self.joypad_lr == self.s.moving_dir && self.joypad.contains(Input::B);
+    if O::RunningTimer::USE_RUNNING_TIMER && is_running { self.s.running_timer = 0xa; }
 
     if !self.s.is_on_ground() && self.s.x_spd_abs >= O::Platform::X_SPD_ABS_CUTOFFS[3] {
       self.max_speed_right = O::Platform::MAX_X_SPD_RUN;
@@ -233,15 +234,15 @@ impl<O: Options, B: BlockBuffer> SmbEmu<O, B> {
       self.max_speed_right = O::Platform::MAX_X_SPD_WALK;
       self.max_speed_left = -O::Platform::MAX_X_SPD_WALK;
       self.friction = O::Platform::FRICTION_WALK_SLOW;
-    } else if O::IS_SWIMMING && !self.s.running_speed && self.s.x_spd_abs < O::Platform::X_SPD_ABS_CUTOFFS[5] {
+    } else if O::Swim::IS_SWIMMING && !self.s.running_speed && self.s.x_spd_abs < O::Platform::X_SPD_ABS_CUTOFFS[5] {
       self.max_speed_right = O::Platform::MAX_X_SPD_SWIM;
       self.max_speed_left = -O::Platform::MAX_X_SPD_SWIM;
       self.friction = O::Platform::FRICTION_WALK_SLOW;
-    } else if O::IS_SWIMMING {
+    } else if O::Swim::IS_SWIMMING {
       self.max_speed_right = O::Platform::MAX_X_SPD_SWIM;
       self.max_speed_left = -O::Platform::MAX_X_SPD_SWIM;
       self.friction = O::Platform::FRICTION_WALK_FAST;
-    } else if self.joypad_lr == self.s.moving_dir && ((O::USE_RUNNING_TIMER && self.s.running_timer > 0) || (!O::USE_RUNNING_TIMER && is_running)) {
+    } else if self.joypad_lr == self.s.moving_dir && ((O::RunningTimer::USE_RUNNING_TIMER && self.s.running_timer > 0) || (!O::RunningTimer::USE_RUNNING_TIMER && is_running)) {
       self.max_speed_right = O::Platform::MAX_X_SPD_RUN;
       self.max_speed_left = -O::Platform::MAX_X_SPD_RUN;
       self.friction = O::Platform::FRICTION_RUN;
@@ -280,7 +281,7 @@ impl<O: Options, B: BlockBuffer> SmbEmu<O, B> {
   fn move_horizontally(&mut self) -> () {
     let old_x_pos = self.s.x_pos;
     self.s.x_pos = self.s.x_pos + ((self.s.x_spd as i32 >> 8) << 4);
-    if O::TRACK_SCROLL_POS {
+    if O::ScrollPos::TRACK_SCROLL_POS {
       self.x_scroll = ((self.s.x_pos >> 8) - (old_x_pos >> 8)) as i8;
     }
   }
@@ -290,7 +291,7 @@ impl<O: Options, B: BlockBuffer> SmbEmu<O, B> {
     if self.s.y_spd >= O::Platform::MAX_Y_SPD && (self.s.y_spd & 0xff) >= 0x80 { self.s.y_spd = O::Platform::MAX_Y_SPD; }
   }
   fn scroll_handler(&mut self) -> () {
-    if O::TRACK_SCROLL_POS {
+    if O::ScrollPos::TRACK_SCROLL_POS {
       let rel_x_pos = ((self.s.x_pos >> 8) - self.s.left_screen_edge_pos as i32) & 0xff;
       if rel_x_pos < 0x50 || self.s.side_collision_timer > 0 || self.x_scroll <= 0 { return; }
       if rel_x_pos < 0x70 && self.x_scroll >= 2 { self.x_scroll -= 1; }
@@ -298,7 +299,7 @@ impl<O: Options, B: BlockBuffer> SmbEmu<O, B> {
     }
   }
   fn block_buffer_collision(&self, block_buffer_adder_offset: usize) -> CollisionResult {
-    let block_buffer_adder_offset = block_buffer_adder_offset + if !O::is_big(&self.s) || self.s.is_crouching { 0x0e } else if O::IS_SWIMMING { 0x07 } else { 0 };
+    let block_buffer_adder_offset = block_buffer_adder_offset + if !O::PlayerSize::is_big(&self.s) || self.s.is_crouching { 0x0e } else if O::Swim::IS_SWIMMING { 0x07 } else { 0 };
 
     let bx = O::Platform::BLOCK_BUFFER_X_ADDER_DATA[block_buffer_adder_offset] as usize;
     let by = O::Platform::BLOCK_BUFFER_Y_ADDER_DATA[block_buffer_adder_offset] as usize;
@@ -312,22 +313,22 @@ impl<O: Options, B: BlockBuffer> SmbEmu<O, B> {
     if cv == 0 { CollisionResult::NoCollision } else { CollisionResult::Collision(cv, cx, cy) }
   }
   fn player_bg_collision(&mut self) -> EmuResult {
-    if O::IS_SWIMMING { self.s.player_state = PlayerState::JUMPING }
+    if O::Swim::IS_SWIMMING { self.s.player_state = PlayerState::JUMPING }
     else if self.s.player_state == PlayerState::STANDING || self.s.player_state == PlayerState::CLIMBING { self.s.player_state = PlayerState::FALLING; }
 
     if self.s.y_pos < 0x10000 || self.s.y_pos >= 0x20000 { return EmuResult::Success; } // yPos out of bounds
     self.s.collision_bits = Dir::LR;
     if self.s.y_pos >= 0x1cf00 { return EmuResult::Success; } // yPos out of bounds
 
-    if self.s.y_pos >= (if O::is_big(&self.s) && !self.s.is_crouching { 0x12000 } else { 0x11000 }) { // HeadChk
+    if self.s.y_pos >= (if O::PlayerSize::is_big(&self.s) && !self.s.is_crouching { 0x12000 } else { 0x11000 }) { // HeadChk
       if let CollisionResult::Collision(cv, cx, cy) = self.block_buffer_collision(0) {
         if is_coin(cv) {
           O::CoinHandler::collect_coin(&mut self.s, cx, cy);
           return EmuResult::Success; // exit (no feet or side checks)
         } else if self.s.y_spd < 0 && (self.s.y_pos & 0x0f00) >= 0x400 {
-          if is_solid(cv) || O::IS_SWIMMING {
+          if is_solid(cv) || O::Swim::IS_SWIMMING {
             self.s.y_spd = 0x100 + (self.s.y_spd & 0xff); // hit solid block
-          } else if O::is_big(&self.s) && !is_question_block(cv) {
+          } else if O::PlayerSize::is_big(&self.s) && !is_question_block(cv) {
             self.s.y_spd = -0x200 + (self.s.y_spd & 0xff); // shatter brick
           } else {
             if is_question_block(cv) { O::PowerupHandler::activate_powerup_block(&mut self.s, cx, cy); }
@@ -363,7 +364,7 @@ impl<O: Options, B: BlockBuffer> SmbEmu<O, B> {
             return EmuResult::Success; // exit (no side checks)
           } else {
             self.s.y_pos &= 0xfff0ff; // align height with block
-            if (!self.started_on_ground || self.joypad_lr.is_empty()) && cv == 0x10 && right_foot_on_vert_pipe && O::enter_vertical_pipe(cx, cy) {
+            if (!self.started_on_ground || self.joypad_lr.is_empty()) && cv == 0x10 && right_foot_on_vert_pipe && O::VerticalPipeHandler::enter_vertical_pipe(cx, cy) {
               return EmuResult::StateChangeVerticalPipe(cx, cy); // vertical pipe entry
             }
             self.s.y_spd = 0; // kill vertical speed
@@ -420,10 +421,10 @@ impl<O: Options, B: BlockBuffer> SmbEmu<O, B> {
 
     self.s.player_state = PlayerState::CLIMBING;
     self.s.x_spd = 0;
-    if O::TRACK_SCROLL_POS && ((self.s.x_pos >> 8) - self.s.left_screen_edge_pos as i32) & 0xff < 16 { self.s.facing_dir = Dir::LEFT; }
+    if O::ScrollPos::TRACK_SCROLL_POS && ((self.s.x_pos >> 8) - self.s.left_screen_edge_pos as i32) & 0xff < 16 { self.s.facing_dir = Dir::LEFT; }
     let x_pos = (((cx as i32) << 4) + CLIMB_X_POS_ADDER[self.s.facing_dir.bits() as usize]) & 0xff;
     let x_page_loc = if cx & 0xf != 0 { self.s.x_pos >> 16 } else {
-      let left_screen_edge_pos: u8 = if O::TRACK_SCROLL_POS { self.s.left_screen_edge_pos } else { (((self.s.x_pos >> 8) - 0x70) & 0xff) as u8 }; // assume middle of screen if scroll is not tracked
+      let left_screen_edge_pos: u8 = if O::ScrollPos::TRACK_SCROLL_POS { self.s.left_screen_edge_pos } else { (((self.s.x_pos >> 8) - 0x70) & 0xff) as u8 }; // assume middle of screen if scroll is not tracked
       let x_pos_byte: u8 = ((self.s.x_pos >> 8) & 0xff) as u8;
       let left_screen_page_loc = if left_screen_edge_pos <= x_pos_byte { self.s.x_pos >> 16 } else { (self.s.x_pos >> 16) - 1 };
       let right_screen_page_loc = if left_screen_edge_pos == 0 { left_screen_page_loc } else { left_screen_page_loc + 1 };
@@ -435,11 +436,11 @@ impl<O: Options, B: BlockBuffer> SmbEmu<O, B> {
     if moving_dir == Dir::RIGHT && self.s.x_spd >= 0 {
       self.s.x_spd &= 0xff;
       self.s.x_pos -= 0x100;
-      if O::TRACK_SCROLL_POS { self.side_collision = true; }
+      if O::ScrollPos::TRACK_SCROLL_POS { self.side_collision = true; }
     } else if moving_dir != Dir::RIGHT && self.s.x_spd < 0x100 {
       self.s.x_spd &= 0xff;
       self.s.x_pos += 0x100;
-      if O::TRACK_SCROLL_POS { self.side_collision = true; }
+      if O::ScrollPos::TRACK_SCROLL_POS { self.side_collision = true; }
     }
     self.s.collision_bits -= moving_dir;
   }

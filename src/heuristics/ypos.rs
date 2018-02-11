@@ -1,4 +1,4 @@
-use options::{Options, Platform, PlayerSize};
+use options::{Options, Platform, PlayerSize, Swim, YPosFractionalBehavior};
 use state::{Dist, State};
 use std::cmp::{max,min};
 use std::collections::{HashMap, HashSet};
@@ -157,7 +157,7 @@ impl<O: Options> YPosEmu<O> {
     let states = Self::player_bg_collision(states);
     let states = Self::player_enemy_collision(states);
     states.into_iter().map(|mut s| {
-      if O::CLEAR_Y_POS_FRACTIONALS && s.is_on_ground { s.y_pos &= 0xffff00; s.v_force_down = O::Platform::V_FORCE_AREA_INIT; }
+      if O::YPosFractionalBehavior::CLEAR_Y_POS_FRACTIONALS && s.is_on_ground { s.y_pos &= 0xffff00; s.v_force_down = O::Platform::V_FORCE_AREA_INIT; }
       if s.is_on_ground { s.v_force = s.v_force_down; } // only needed for JumpSwim, set whenever entered
       s
     }).collect()
@@ -173,11 +173,11 @@ impl<O: Options> YPosEmu<O> {
       }
 
       // handle starting jumps
-      if s.is_on_ground || O::IS_SWIMMING {
+      if s.is_on_ground || O::Swim::IS_SWIMMING {
         let mut start_jump = s.clone();
         start_jump.y_pos &= 0xffff00; // clear fractional yPos
         start_jump.is_on_ground = false;
-        if O::IS_SWIMMING {
+        if O::Swim::IS_SWIMMING {
           let mut start_jump_swim = start_jump.clone();
           start_jump_swim.v_force = O::Platform::V_FORCE_JUMP_SWIMMING;
           start_jump_swim.v_force_down = O::Platform::V_FORCE_FALL_SWIMMING;
@@ -212,7 +212,7 @@ impl<O: Options> YPosEmu<O> {
 
     // MoveSubs
     let states: HashSet<YPosState> = states.into_iter().flat_map(|s| {
-      if !s.is_on_ground && O::IS_SWIMMING {
+      if !s.is_on_ground && O::Swim::IS_SWIMMING {
         let mut swim_too_high = s.clone();
         swim_too_high.v_force = O::Platform::V_FORCE_SWIM_TOO_HIGH;
         vec![s, swim_too_high]
@@ -229,7 +229,7 @@ impl<O: Options> YPosEmu<O> {
   }
   fn player_bg_collision(states: HashSet<YPosState>) -> HashSet<YPosState> {
     // Get into falling state if fractionals are not cleared
-    let states: HashSet<YPosState> = states.into_iter().map(|mut s| { if !O::CLEAR_Y_POS_FRACTIONALS { s.is_on_ground = false; } s }).collect();
+    let states: HashSet<YPosState> = states.into_iter().map(|mut s| { if !O::YPosFractionalBehavior::CLEAR_Y_POS_FRACTIONALS { s.is_on_ground = false; } s }).collect();
 
     // HeadChk
     let states: HashSet<YPosState> = states.into_iter().flat_map(|s| {
@@ -237,7 +237,7 @@ impl<O: Options> YPosEmu<O> {
 
       let mut hit_solid_block = s.clone();
       hit_solid_block.y_spd = 0x100 + (hit_solid_block.y_spd & 0xff); // hit solid block
-      if O::IS_SWIMMING { return vec![s, hit_solid_block]; }
+      if O::Swim::IS_SWIMMING { return vec![s, hit_solid_block]; }
 
       let mut bump_block = s.clone();
       bump_block.y_spd &= 0xff; // bump block
@@ -263,13 +263,13 @@ impl<O: Options> YPosEmu<O> {
   fn player_enemy_collision(states: HashSet<YPosState>) -> HashSet<YPosState> {
     if !WITH_ENEMY_COLLISIONS { return states; }
     // bounce on enemy
-    let states: HashSet<YPosState> = states.into_iter().flat_map(|s| {
-      if s.y_spd >= 0x100 {
-        let mut bounce_enemy = s.clone();
-        bounce_enemy.y_spd = -0x300 + (bounce_enemy.y_spd & 0xff); // bounce on enemy
-        vec![s, bounce_enemy]
-      } else { vec![s] }
-    }).collect();
+    // let states: HashSet<YPosState> = states.into_iter().flat_map(|s| {
+    //   if s.y_spd >= 0x100 {
+    //     let mut bounce_enemy = s.clone();
+    //     bounce_enemy.y_spd = -0x300 + (bounce_enemy.y_spd & 0xff); // bounce on enemy
+    //     vec![s, bounce_enemy]
+    //   } else { vec![s] }
+    // }).collect();
 
     // bounce on shell
     states.into_iter().flat_map(|s| {

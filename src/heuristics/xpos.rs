@@ -1,4 +1,4 @@
-use options::{Options, Platform};
+use options::{Options, Platform, Swim};
 use state::{Dir, Dist, State};
 use std::cmp::{max,min};
 use std::collections::{HashMap, HashSet};
@@ -114,6 +114,9 @@ impl XPosHeuristic {
     }
     println!();
   }
+  pub fn get_max_x_pos_after_steps(&self, s: &State, steps: usize) -> i32 {
+    s.x_pos + self.get_max_distance(&Self::to_x_pos_state(s), steps)
+  }
   fn get_max_distance(&self, s: &XPosState, steps: usize) -> i32 {
     let max_dists = self.max_distance.get(s).unwrap();
     let len = max_dists.len();
@@ -208,9 +211,9 @@ impl<O: Options> XPosEmu<O> {
       vec![(O::Platform::FRICTION_WALK_FAST, O::Platform::MAX_X_SPD_WALK)]
     } else if !s.is_on_ground {
       vec![(O::Platform::FRICTION_WALK_SLOW, O::Platform::MAX_X_SPD_WALK)]
-    } else if O::IS_SWIMMING && !s.running_speed && s.x_spd_abs < O::Platform::X_SPD_ABS_CUTOFFS[5] {
+    } else if O::Swim::IS_SWIMMING && !s.running_speed && s.x_spd_abs < O::Platform::X_SPD_ABS_CUTOFFS[5] {
       vec![(O::Platform::FRICTION_WALK_SLOW, O::Platform::MAX_X_SPD_SWIM)]
-    } else if O::IS_SWIMMING {
+    } else if O::Swim::IS_SWIMMING {
       vec![(O::Platform::FRICTION_WALK_FAST, O::Platform::MAX_X_SPD_SWIM)]
     } else {
       let mut inner_result = Vec::new();
@@ -232,7 +235,7 @@ impl<O: Options> XPosEmu<O> {
   }
   fn move_subs(s: &XPosState, lr: Dir, joypad_lr: Dir, friction: i16, max_speed: i16) -> Vec<XPosState> {
     let mut result: Vec<XPosState> = vec![s.clone()];
-    if s.is_on_ground || O::IS_SWIMMING {
+    if s.is_on_ground || O::Swim::IS_SWIMMING {
       result = Self::get_player_anim_speed(s.clone(), lr);
       if !joypad_lr.is_empty() {
         for s in &mut result { s.facing_dir = joypad_lr; }

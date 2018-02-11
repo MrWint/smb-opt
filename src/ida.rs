@@ -1,6 +1,6 @@
 use emu::{Emu,EmuResult,Input};
 use heuristics::SearchGoal;
-use options::{Options, Platform};
+use options::{Options, Platform, PlayerSize, Swim};
 use state::{Dist,PlayerState, State};
 use std::marker::PhantomData;
 use store::StateStore;
@@ -20,55 +20,55 @@ impl<O: Options> InputFetcher for SmbInputFetcher<O> {
     if s.y_pos < 0x10000 || s.y_pos >= 0x1d000 { return vec![Input::empty()]; } // inputs are ignored
 
     let mut inputs = Vec::new();
-    if !O::IS_SWIMMING && s.is_on_ground() {
+    if !O::Swim::IS_SWIMMING && s.is_on_ground() {
       inputs.push(Input::B | Input::from_bits_truncate(s.moving_dir.bits()));
     }
     inputs.push(Input::RIGHT);
-    if s.player_state == PlayerState::STANDING || O::IS_SWIMMING { // Changes the facing_dir
+    if s.player_state == PlayerState::STANDING || O::Swim::IS_SWIMMING { // Changes the facing_dir
       inputs.push(Input::LEFT | Input::RIGHT);
     }
     inputs.push(Input::empty());
     inputs.push(Input::LEFT);
 
-    if O::is_big(s) && s.is_on_ground() {
+    if O::PlayerSize::is_big(s) && s.is_on_ground() {
       inputs.push(Input::DOWN);
     }
-    if s.is_on_ground() && s.x_spd_abs < O::Platform::X_SPD_ABS_CUTOFFS[4] && (!s.moving_dir.is_empty() || !O::is_big(s)) {
+    if s.is_on_ground() && s.x_spd_abs < O::Platform::X_SPD_ABS_CUTOFFS[4] && (!s.moving_dir.is_empty() || !O::PlayerSize::is_big(s)) {
       inputs.push(Input::DOWN | Input::from_bits_truncate(s.moving_dir.bits()));
     }
-    if s.is_on_ground() && s.x_spd_abs < O::Platform::X_SPD_ABS_CUTOFFS[1] && (s.moving_dir.is_empty() || !O::is_big(s)) {
+    if s.is_on_ground() && s.x_spd_abs < O::Platform::X_SPD_ABS_CUTOFFS[1] && (s.moving_dir.is_empty() || !O::PlayerSize::is_big(s)) {
       inputs.push(Input::DOWN | if s.moving_dir.is_empty() { Input::RIGHT } else { Input::empty() });
     }
-    if s.is_on_ground() || (O::IS_SWIMMING && (s.jump_swim_timer != 0 || s.y_spd >= 0)) || (s.player_state == PlayerState::JUMPING && s.v_force != s.v_force_down) {
+    if s.is_on_ground() || (O::Swim::IS_SWIMMING && (s.jump_swim_timer != 0 || s.y_spd >= 0)) || (s.player_state == PlayerState::JUMPING && s.v_force != s.v_force_down) {
       inputs.push(Input::A);
       inputs.push(Input::A | Input::RIGHT);
-      if O::IS_SWIMMING { // Changes the facing_dir
+      if O::Swim::IS_SWIMMING { // Changes the facing_dir
         inputs.push(Input::A | Input::LEFT | Input::RIGHT);
       }
       inputs.push(Input::A | Input::LEFT);
     }
-    if O::is_big(s) && s.is_on_ground() {
+    if O::PlayerSize::is_big(s) && s.is_on_ground() {
       inputs.push(Input::A | Input::DOWN);
     }
-    if O::IS_SWIMMING && s.is_on_ground() && s.x_spd_abs < O::Platform::X_SPD_ABS_CUTOFFS[4] && (!s.moving_dir.is_empty() || !O::is_big(s)) {
+    if O::Swim::IS_SWIMMING && s.is_on_ground() && s.x_spd_abs < O::Platform::X_SPD_ABS_CUTOFFS[4] && (!s.moving_dir.is_empty() || !O::PlayerSize::is_big(s)) {
       inputs.push(Input::A | Input::DOWN | Input::from_bits_truncate(s.moving_dir.bits()));
     }
-    if O::IS_SWIMMING && s.is_on_ground() && s.x_spd_abs < O::Platform::X_SPD_ABS_CUTOFFS[1] && (s.moving_dir.is_empty() || !O::is_big(s)) {
+    if O::Swim::IS_SWIMMING && s.is_on_ground() && s.x_spd_abs < O::Platform::X_SPD_ABS_CUTOFFS[1] && (s.moving_dir.is_empty() || !O::PlayerSize::is_big(s)) {
       inputs.push(Input::A | Input::DOWN | if s.moving_dir.is_empty() { Input::RIGHT } else { Input::empty() });
     }
-    if (s.is_on_ground() || O::IS_SWIMMING) && s.x_spd_abs < O::Platform::X_SPD_ABS_CUTOFFS[4] && s.moving_dir.is_empty() {
+    if (s.is_on_ground() || O::Swim::IS_SWIMMING) && s.x_spd_abs < O::Platform::X_SPD_ABS_CUTOFFS[4] && s.moving_dir.is_empty() {
       inputs.push(Input::UP);
     }
-    if (s.is_on_ground() || O::IS_SWIMMING) && s.x_spd_abs < O::Platform::X_SPD_ABS_CUTOFFS[1] && !s.moving_dir.is_empty() {
+    if (s.is_on_ground() || O::Swim::IS_SWIMMING) && s.x_spd_abs < O::Platform::X_SPD_ABS_CUTOFFS[1] && !s.moving_dir.is_empty() {
       inputs.push(Input::UP);
     }
-    if O::IS_SWIMMING
+    if O::Swim::IS_SWIMMING
         && (s.is_on_ground() || s.jump_swim_timer != 0 || s.y_spd >= 0 || s.v_force != s.v_force_down)
         && s.x_spd_abs < O::Platform::X_SPD_ABS_CUTOFFS[4]
         && s.moving_dir.is_empty() {
       inputs.push(Input::A | Input::UP);
     }
-    if O::IS_SWIMMING
+    if O::Swim::IS_SWIMMING
         && (s.is_on_ground() || s.jump_swim_timer != 0 || s.y_spd >= 0 || s.v_force != s.v_force_down)
         && s.x_spd_abs < O::Platform::X_SPD_ABS_CUTOFFS[1]
         && !s.moving_dir.is_empty() {
@@ -100,6 +100,12 @@ pub enum SearchResult {
 pub trait Search {
   fn find_first_solution(start_states: Vec<State>, initial_max_allowed_steps: Dist, search_space_size_hint: usize) -> SearchResult;
 }
+
+const DEBUG_MODE: bool = false;
+lazy_static! {
+  static ref DEBUG_STATE_WATCHLIST: Vec<State> = { vec![] };
+}
+
 pub struct IDA<S: StateStore, E: Emu, G: SearchGoal, I: InputFetcher> {
   visited_states: S,
   search_goal: G,
@@ -136,9 +142,10 @@ impl<S: StateStore, E: Emu, G: SearchGoal, I: InputFetcher> IDA<S, E, G, I> {
     } else {
       return SearchResult::NotFound;
     }
+    if DEBUG_MODE && DEBUG_STATE_WATCHLIST.contains(&s) { println!("DEBUG: visit watched state {}, steps_already_taken: {}, heuristic {}", DEBUG_STATE_WATCHLIST.iter().position(|ss| ss == &s).unwrap(), steps_already_taken, heuristic_distance_to_goal); }
     if steps_already_taken >= max_allowed_steps
         || steps_already_taken + heuristic_distance_to_goal > max_allowed_steps // out of steps
-        || s.y_pos >= 0x1c500 // too low
+        || s.y_pos >= 0x1d000 // too low 0x1c600
         || !self.visited_states.check_and_update_dist(&s, steps_already_taken) {
       return SearchResult::NotFound;
     }
@@ -154,8 +161,11 @@ impl<S: StateStore, E: Emu, G: SearchGoal, I: InputFetcher> IDA<S, E, G, I> {
       self.last_update_seen = new_update_seen;
     }
 
+    if DEBUG_MODE && DEBUG_STATE_WATCHLIST.contains(&s) { println!("DEBUG: valid inputs: {:?}", I::valid_next_inputs(&s)); }
     for input in I::valid_next_inputs(&s) {
+      if DEBUG_MODE && DEBUG_STATE_WATCHLIST.contains(&s) { println!("DEBUG: input: {}", input); }
       let (new_state, emu_result) = E::run_step(s.clone(), input);
+      if DEBUG_MODE && DEBUG_STATE_WATCHLIST.contains(&s) { println!("DEBUG: input: {} state: {}", input, new_state); }
       if self.search_goal.is_goal_state(&new_state, &emu_result) {
         println!("Found goal state after {} seen states!", self.visited_states.len());
         if heuristic_distance_to_goal > 1 {
@@ -164,7 +174,9 @@ impl<S: StateStore, E: Emu, G: SearchGoal, I: InputFetcher> IDA<S, E, G, I> {
         return SearchResult::Found(vec![new_state, s], vec![input]);
       }
       if let EmuResult::Success = emu_result {
+        if DEBUG_MODE && DEBUG_STATE_WATCHLIST.contains(&s) { println!("DEBUG: start recursion"); }
         if let SearchResult::Found(mut states, mut inputs) = self.find_first_solution_rec(new_state, steps_already_taken + 1, max_allowed_steps) {
+        if DEBUG_MODE && DEBUG_STATE_WATCHLIST.contains(&s) { println!("DEBUG: recursive solution"); }
           inputs.push(input);
           if heuristic_distance_to_goal as usize > inputs.len() {
             println!("WARNING: heuristic ({}) larger than actual steps needed ({}) for state {:?}", heuristic_distance_to_goal, inputs.len(), s);
@@ -174,6 +186,7 @@ impl<S: StateStore, E: Emu, G: SearchGoal, I: InputFetcher> IDA<S, E, G, I> {
         }
       }
     }
+    if DEBUG_MODE && DEBUG_STATE_WATCHLIST.contains(&s) { println!("DEBUG: exit state {}", DEBUG_STATE_WATCHLIST.iter().position(|ss| ss == &s).unwrap()); }
     SearchResult::NotFound
   }
   fn find_first_solution(mut self, start_states: Vec<State>, initial_max_allowed_steps: Dist) -> SearchResult {

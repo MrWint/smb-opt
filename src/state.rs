@@ -1,5 +1,6 @@
 use bitpack::BitPack;
-use options::{CoinHandler, Options, Platform, PlayerSize, PlayerSwimming, PowerupHandler, RunningTimer, ScrollPos};
+use core::array::FixedSizeArray;
+use options::{CoinHandler, Options, Parity, Platform, PlayerSize, Swim, PowerupHandler, RunningTimer, ScrollPos};
 use std::hash::{Hash, Hasher};
 use std::marker::PhantomData;
 
@@ -53,6 +54,7 @@ pub struct State {
   pub coin_collected: bool, // only for single coin strategy
   pub powerup_block_hit: bool, // only for powerup collection
   pub powerup_collected: bool, // only for powerup collection
+  pub parity: u8,
 }
 impl State {
   pub fn is_on_ground(&self) -> bool { self.player_state == PlayerState::STANDING }
@@ -83,6 +85,7 @@ impl ::std::fmt::Display for State {
     writeln!(f, "  coin_collected: {:?}", self.coin_collected)?;
     writeln!(f, "  powerup_block_hit: {:?}", self.powerup_block_hit)?;
     writeln!(f, "  powerup_collected: {:?}", self.powerup_collected)?;
+    writeln!(f, "  parity: {}", self.parity)?;
     write!(f, "}}")
   }
 }
@@ -96,46 +99,54 @@ impl StateCompressor for State {
   }
 }
 
-const COMPRESSED_STATE_BYTES: usize = 10;
-pub struct CompressedState<O: Options> {
-  buf: [u8; COMPRESSED_STATE_BYTES],
+pub trait StateArray: FixedSizeArray<u8> + Hash + Clone + PartialEq + Eq {
+  fn new() -> Self;
+}
+impl StateArray for [u8; 10] { fn new() -> Self { [0; 10] } }
+impl StateArray for [u8; 11] { fn new() -> Self { [0; 11] } }
+impl StateArray for [u8; 12] { fn new() -> Self { [0; 12] } }
+pub struct CompressedState<O: Options, A: StateArray> {
+  buf: A,
   _options: PhantomData<O>,
 }
-impl<O: Options> PartialEq for CompressedState<O> {
+impl<O: Options, A: StateArray> PartialEq for CompressedState<O, A> {
   fn eq(&self, other: &Self) -> bool { self.buf.eq(&other.buf) }
 }
-impl<O: Options> Eq for CompressedState<O> {}
-impl<O: Options> Clone for CompressedState<O> {
+impl<O: Options, A: StateArray> Eq for CompressedState<O, A> {}
+impl<O: Options, A: StateArray> Clone for CompressedState<O, A> {
   fn clone(&self) -> Self { Self { buf: self.buf.clone(), _options: PhantomData } }
 }
-impl<O: Options> Hash for CompressedState<O> {
+impl<O: Options, A: StateArray> Hash for CompressedState<O, A> {
   fn hash<H: Hasher>(&self, state: &mut H) {
     self.buf.hash(state);
   }
 }
-impl<O: Options> ::store::VecHashKey for CompressedState<O> {
+impl<O: Options, A: StateArray> ::store::VecHashKey for CompressedState<O, A> {
   fn is_valid(&self) -> bool {
-    self.buf[7] != 0 // contains facing_dir, which is never 0
+    self.buf.as_slice()[7] != 0 // contains facing_dir, which is never 0
   }
   fn invalid() -> Self {
-    CompressedState { buf: [0; COMPRESSED_STATE_BYTES], _options: PhantomData }
+    CompressedState { buf: A::new(), _options: PhantomData }
   }
 }
-impl<O: Options> StateCompressor for CompressedState<O> {
-  fn from_state(s: &State) -> CompressedState<O> {
+impl<O: Options, A: StateArray> StateCompressor for CompressedState<O, A> {
+  fn from_state(s: &State) -> CompressedState<O, A> {
     const Y_POS_OFFSET: u32 = 0xd000;
 
+    let mut buf = A::new();
+
+    let bytes_available = buf.as_slice().len();
     let bytes_needed = (16 + 16 + 13 + 12 + 2 + 2 + 2 + 4 + 4 + 3 + 1 + 2 + 7
-        + O::PlayerSize::CROUCH_BITS + O::PlayerSwimming::SWIMMING_BITS
+        + O::PlayerSize::CROUCH_BITS + O::Swim::SWIMMING_BITS
         + O::RunningTimer::RUNNING_TIMER_BITS
         + O::ScrollPos::SCROLL_POS_BITS
+        + O::Parity::PARITY_BITS
         + O::CoinHandler::COIN_HANDLER_BITS
         + O::PowerupHandler::POWERUP_HANDLER_BITS) >> 3;
-    assert!(bytes_needed == COMPRESSED_STATE_BYTES, "bytes_needed {} != COMPRESSED_STATE_BYTES {}", bytes_needed, COMPRESSED_STATE_BYTES);
+    assert!(bytes_needed == bytes_available, "bytes_needed {} != bytes_available {}", bytes_needed, bytes_available);
 
-    let mut buf = [0; COMPRESSED_STATE_BYTES];
     {
-      let mut bitpack = BitPack::<&mut [u8]>::new(&mut buf);
+      let mut bitpack = BitPack::<&mut [u8]>::new(buf.as_mut_slice());
       bitpack.write(s.x_pos as u32 >> 4, 16).unwrap();
       bitpack.write(s.y_pos as u32 - Y_POS_OFFSET, 16).unwrap();
       bitpack.write(s.x_spd as u32 >> 2, 13).unwrap();
@@ -152,7 +163,7 @@ impl<O: Options> StateCompressor for CompressedState<O> {
       if O::PlayerSize::CROUCH_BITS > 0 {
         bitpack.write(if s.is_crouching { 1 } else { 0 }, 1).unwrap();
       }
-      if O::PlayerSwimming::SWIMMING_BITS > 0 {
+      if O::Swim::SWIMMING_BITS > 0 {
         bitpack.write(s.jump_swim_timer as u32, 5).unwrap();
       }
       if O::RunningTimer::RUNNING_TIMER_BITS > 0 {
@@ -161,6 +172,9 @@ impl<O: Options> StateCompressor for CompressedState<O> {
       if O::ScrollPos::SCROLL_POS_BITS > 0 {
         bitpack.write(s.left_screen_edge_pos as u32, 8).unwrap();
         bitpack.write(s.side_collision_timer as u32, 4).unwrap();
+      }
+      if O::Parity::PARITY_BITS > 0 {
+        bitpack.write(s.parity as u32, O::Parity::PARITY_BITS).unwrap();
       }
       if O::CoinHandler::COIN_HANDLER_BITS > 0 {
         bitpack.write(if s.coin_collected { 1 } else { 0 }, 1).unwrap();
