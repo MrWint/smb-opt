@@ -51,7 +51,7 @@ pub struct State {
   pub running_timer: u8, // only when running timer enabled
   pub left_screen_edge_pos: u8, // only when scrolling is tracked
   pub side_collision_timer: u8, // only when scrolling is tracked
-  pub coin_collected: bool, // only for single coin strategy
+  pub collected_coins: u32, // only for coin strategies
   pub powerup_block_hit: bool, // only for powerup collection
   pub powerup_collected: bool, // only for powerup collection
   pub parity: u8,
@@ -82,7 +82,7 @@ impl ::std::fmt::Display for State {
     writeln!(f, "  running_timer: {:?}", self.running_timer)?;
     writeln!(f, "  left_screen_edge_pos: {:#x}", self.left_screen_edge_pos)?;
     writeln!(f, "  side_collision_timer: {:?}", self.side_collision_timer)?;
-    writeln!(f, "  coin_collected: {:?}", self.coin_collected)?;
+    writeln!(f, "  collected_coins: {:?}", self.collected_coins)?;
     writeln!(f, "  powerup_block_hit: {:?}", self.powerup_block_hit)?;
     writeln!(f, "  powerup_collected: {:?}", self.powerup_collected)?;
     writeln!(f, "  parity: {}", self.parity)?;
@@ -177,7 +177,7 @@ impl<O: Options, A: StateArray> StateCompressor for CompressedState<O, A> {
         bitpack.write(s.parity as u32, O::Parity::PARITY_BITS).unwrap();
       }
       if O::CoinHandler::COIN_HANDLER_BITS > 0 {
-        bitpack.write(if s.coin_collected { 1 } else { 0 }, 1).unwrap();
+        bitpack.write(s.collected_coins, O::CoinHandler::COIN_HANDLER_BITS).unwrap();
       }
       if O::PowerupHandler::POWERUP_HANDLER_BITS > 0 {
         bitpack.write(if s.powerup_block_hit { 1 } else { 0 }, 1).unwrap();

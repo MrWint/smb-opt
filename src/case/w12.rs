@@ -1,5 +1,6 @@
 use blockbuffer::world1::*;
 use emu::{Emu, EmuResult, SmbEmu};
+#[allow(unused_imports)] use emu::inputs::*;
 use heuristics::{BoundsHeuristic, SearchGoal};
 use heuristics::xpos::XPosHeuristic;
 use options::*;
@@ -24,7 +25,7 @@ fn w12_start<O: Options>() -> State {
     jump_swim_timer: 0,
     running_timer : 0,
     is_crouching: false,
-    coin_collected: false,
+    collected_coins: 0,
     powerup_block_hit: false,
     powerup_collected: false,
     parity: 0,
@@ -113,7 +114,7 @@ impl super::SmbSearchCase for W12Powerup {
       jump_swim_timer: 11,
       running_timer : 0,
       is_crouching: false,
-      coin_collected: false,
+      collected_coins: 0,
       powerup_block_hit: false,
       powerup_collected: false,
       parity: 0,
@@ -153,6 +154,7 @@ impl SearchGoal for W12Powerup {
 
 /// Exit pipe to half flag pole glitch
 /// Input sequence: [1x L|R, 1x A|R, 19x R, 1x NIL, 1x B|R, 1x L, 4x R, 2x A|R, 11x R, 4x B|R, 1x A, 9x R, 3x B|R, 1x A, 9x R, 14x B|R, 1x A, 36x R, 1x L, 1x NIL, 4x L, 7x R, 1x L, 1x NIL, 1x R, 1x A|L, 1x NIL, 1x R] (len: 138)
+/// Input sequence: [1x L|R, 1x A|R, 19x R, 1x NIL, 1x B|R, 1x B|L, 4x B|R, 2x A|B|R, 2x B|R, 9x B, 2x B|R, 1x R, 1x B|L, 1x A, 9x R, 3x B|R, 1x A, 9x R, 14x B|R, 1x A, 34x R, 4x NIL, 2x L, 1x NIL, 2x L, 2x NIL, 4x R, 1x L, 1x NIL, 1x R, 1x A|L, 1x NIL, 1x R] (len: 138)
 #[allow(dead_code)]
 pub struct W12Flag {
   heuristic: BoundsHeuristic,
@@ -176,7 +178,7 @@ impl super::SmbSearchCase for W12Flag {
   type BlockBuffer = BB11;
 
   fn start_states() -> Vec<State> {
-    vec![State {
+    let s = State {
       x_pos: 0xb3800,
       y_pos: 0x19000,
       x_spd: 0x0,
@@ -194,11 +196,21 @@ impl super::SmbSearchCase for W12Flag {
       jump_swim_timer: 0,
       running_timer : 0,
       is_crouching: false,
-      coin_collected: false,
+      collected_coins: 0,
       powerup_block_hit: false,
       powerup_collected: false,
       parity: 0,
-    }]
+    };
+    let s = Self::Emu::run_steps_nr(s, &[L|R, A|R]);
+    let s = Self::Emu::run_steps_nr(s, &[R; 19]);
+    let s = Self::Emu::run_steps_nr(s, &[NIL, B|R, B|L]);
+    let s = Self::Emu::run_steps_nr(s, &[B|R; 4]);
+    let s = Self::Emu::run_steps_nr(s, &[A|B|R; 2]);
+    let s = Self::Emu::run_steps_nr(s, &[B|R; 2]);
+    let s = Self::Emu::run_steps_nr(s, &[B; 9]);
+    let s = Self::Emu::run_steps_nr(s, &[B|R; 2]);
+    let s = Self::Emu::run_steps_nr(s, &[B|R, B|L]);
+    vec![s]
   }
   //const INITIAL_SEARCH_DISTANCE: Dist = 138;
   const SEARCH_SPACE_SIZE_HINT: usize = 30383304;

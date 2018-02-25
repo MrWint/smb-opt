@@ -11,6 +11,9 @@ pub mod w12;
 pub mod w13;
 pub mod w14;
 pub mod w21;
+pub mod w22;
+pub mod w23;
+pub mod w31;
 
 #[allow(dead_code)]
 pub fn with_left_and_right_facing_dir(states: Vec<State>) -> Vec<State> {
@@ -39,8 +42,9 @@ pub fn with_smaller_x_pos<O: Options>(states: Vec<State>, num_subpixels: i32) ->
   states.into_iter().flat_map(|s| {
     (0..num_subpixels+1).map(move |d| {
       let mut s = s.clone();
+      let old_x_pos = s.x_pos;
       s.x_pos -= d << 4;
-      if O::ScrollPos::TRACK_SCROLL_POS { s.left_screen_edge_pos = ((s.left_screen_edge_pos as i32 - (s.x_pos >> 8) + (s.x_pos >> 8)) & 0xff) as u8; }
+      if O::ScrollPos::TRACK_SCROLL_POS { s.left_screen_edge_pos = ((s.left_screen_edge_pos as i32 + (s.x_pos >> 8) - (old_x_pos >> 8)) & 0xff) as u8; }
       s
     })
   }).collect()

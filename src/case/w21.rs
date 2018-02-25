@@ -53,7 +53,7 @@ impl super::SmbSearchCase for W21ScreenScrollRightCollision {
       running_timer : 10,
       left_screen_edge_pos: 0x47,
       side_collision_timer: 0,
-      coin_collected: false,
+      collected_coins: 0,
       powerup_block_hit: false,
       powerup_collected: false,
       parity: 0,
@@ -144,7 +144,7 @@ impl super::SmbSearchCase for W21ScreenScrollLeftCollision {
       running_timer : 10,
       left_screen_edge_pos: 0x92,
       side_collision_timer: 0,
-      coin_collected: false,
+      collected_coins: 0,
       powerup_block_hit: false,
       powerup_collected: false,
       parity: 0,
@@ -168,13 +168,13 @@ impl SearchGoal for W21ScreenScrollLeftCollision {
       let max_scroll = max((max_x_pos >> 8) - (s.x_pos >> 8), 0);
       if rel_x_pos + max_scroll < GOAL_SCROLL_POS { return None; }
     }
-    // let heuristic_steps = self.h.get_steps_until_x_pos_at_least(s, 0x13a40);
-    let heuristic_steps = self.h.get_steps_until_x_pos_at_least(s, self.max_x_pos + 0x10);
+    let heuristic_steps = self.h.get_steps_until_x_pos_at_least(s, 0x13a40);
+    // let heuristic_steps = self.h.get_steps_until_x_pos_at_least(s, self.max_x_pos + 0x10);
     Some(heuristic_steps)
   }
   fn is_goal_state(&self, s: &State, _: &EmuResult) -> bool {
-    // s.x_pos >= 0x13a40
-    false
+    s.x_pos >= 0x13a40
+    // false
   }
   fn track_metric(&mut self, s: &State) -> () {
     if self.max_x_pos < s.x_pos {
@@ -232,7 +232,7 @@ impl super::SmbSearchCase for W21ScreenScrollBlock3Clip {
       running_timer : 10,
       left_screen_edge_pos: 0x73,
       side_collision_timer: 0,
-      coin_collected: false,
+      collected_coins: 0,
       powerup_block_hit: false,
       powerup_collected: false,
       parity: 0,
@@ -322,7 +322,7 @@ impl super::SmbSearchCase for W21ScreenScrollBlock3ClipSpeedup {
       running_timer : 0,
       left_screen_edge_pos: 0xa9,
       side_collision_timer: 15,
-      coin_collected: false,
+      collected_coins: 0,
       powerup_block_hit: false,
       powerup_collected: false,
       parity: 0,
@@ -437,7 +437,7 @@ impl super::SmbSearchCase for W21ScreenScrollBlock3PipeClip {
       running_timer : 10,
       left_screen_edge_pos: 0xff,
       side_collision_timer: 0,
-      coin_collected: false,
+      collected_coins: 0,
       powerup_block_hit: false,
       powerup_collected: false,
       parity: 0,
@@ -447,7 +447,7 @@ impl super::SmbSearchCase for W21ScreenScrollBlock3PipeClip {
     vec![s]
     )), 0)
   }
-  const INITIAL_SEARCH_DISTANCE: Dist = 55 +31-11+5;
+  const INITIAL_SEARCH_DISTANCE: Dist = 55 +3-11+5;
   const SEARCH_SPACE_SIZE_HINT: usize = 800000000;
 }
 impl SearchGoal for W21ScreenScrollBlock3PipeClip {
@@ -455,7 +455,7 @@ impl SearchGoal for W21ScreenScrollBlock3PipeClip {
   fn distance_to_goal_heuristic(&self, s: &mut State, _steps_already_taken: Dist) -> Option<Dist> {
     let rel_x_pos = ((s.x_pos >> 8) - s.left_screen_edge_pos as i32) & 0xff;
 
-    const GOAL_SCROLL_POS: i32 = 0x81 + 34;
+    const GOAL_SCROLL_POS: i32 = 0x81 + 11;
 
     if s.x_pos >= 0x49a00 || s.side_collision_timer > 0 {
       if s.side_collision_timer < 15 {
@@ -513,11 +513,11 @@ impl super::SmbSearchCase for W21FloorClip {
     let s = State {
       x_pos: 0x96e30,
       y_pos: 0x19940,
-      x_spd: 0x2890,
+      x_spd: 0x2804,
       y_spd: 0x400,
       player_state: PlayerState::JUMPING,
       moving_dir: Dir::RIGHT,
-      facing_dir: Dir::RIGHT,
+      facing_dir: Dir::LEFT,
       v_force: <Self as Options>::Platform::V_FORCE_FALL_RUNNING,
       v_force_down: <Self as Options>::Platform::V_FORCE_FALL_RUNNING,
       x_spd_abs: 0x21,
@@ -528,14 +528,14 @@ impl super::SmbSearchCase for W21FloorClip {
       running_timer : 0,
       left_screen_edge_pos: 0xed,
       side_collision_timer: 0,
-      coin_collected: false,
+      collected_coins: 0,
       powerup_block_hit: false,
       powerup_collected: false,
       parity: 0,
     };
-    super::with_smaller_x_pos::<Self>(super::with_left_and_right_facing_dir(super::with_all_x_spd_subpixels(
+    // super::with_smaller_x_pos::<Self>(super::with_left_and_right_facing_dir(super::with_all_x_spd_subpixels(
     vec![s]
-    )), 3)
+    // )), 3)
   }
   const INITIAL_SEARCH_DISTANCE: Dist = 70;
   const SEARCH_SPACE_SIZE_HINT: usize = 800000000;
@@ -614,7 +614,7 @@ impl super::SmbSearchCase for W21FloorFlag {
       running_timer : 10,
       left_screen_edge_pos: 0xc7,
       side_collision_timer: 0,
-      coin_collected: false,
+      collected_coins: 0,
       powerup_block_hit: false,
       powerup_collected: false,
       parity: 0,

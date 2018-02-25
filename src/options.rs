@@ -89,10 +89,10 @@ pub trait SingleCoinHandler {
 impl<T: SingleCoinHandler> CoinHandler for T {
   const COIN_HANDLER_BITS: usize = 1;
   fn is_coin_collected(s: &State, cx: usize, cy: usize) -> bool {
-    s.coin_collected || Self::COIN_X != cx || Self::COIN_Y != cy
+    s.collected_coins == 1 || Self::COIN_X != cx || Self::COIN_Y != cy
   }
   fn collect_coin(s: &mut State, _: usize, _: usize) -> () {
-    s.coin_collected = true;
+    s.collected_coins = 1;
   }
 }
 

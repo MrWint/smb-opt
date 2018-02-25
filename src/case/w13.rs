@@ -38,7 +38,7 @@ impl super::SmbSearchCase for W13PowerupSmall {
     vec![State {
       x_pos: 0x37590,
       y_pos: 0x17e50,
-      x_spd: 0x2800,
+      x_spd: 0x2804,
       y_spd: -0x320, // 0xfce0
       player_state: PlayerState::JUMPING,
       moving_dir: Dir::RIGHT,
@@ -53,7 +53,7 @@ impl super::SmbSearchCase for W13PowerupSmall {
       jump_swim_timer: 20,
       running_timer : 0,
       is_crouching: false,
-      coin_collected: false,
+      collected_coins: 0,
       powerup_block_hit: false,
       powerup_collected: false,
       parity: 0,
@@ -154,7 +154,7 @@ impl super::SmbSearchCase for W13PowerupBig {
       running_timer : 0,
       left_screen_edge_pos: 0x5,
       side_collision_timer: 0,
-      coin_collected: false,
+      collected_coins: 0,
       powerup_block_hit: false,
       powerup_collected: false,
       parity: 0,
@@ -262,7 +262,7 @@ impl super::SmbSearchCase for W13FloorClip {
       running_timer : 0,
       left_screen_edge_pos: 0x61,
       side_collision_timer: 0,
-      coin_collected: false,
+      collected_coins: 0,
       powerup_block_hit: false,
       powerup_collected: false,
       parity: 0,
@@ -353,16 +353,16 @@ impl super::SmbSearchCase for W13FloorClipSpeedup {
       running_timer : 0,
       left_screen_edge_pos: 0x8b,
       side_collision_timer: 0,
-      coin_collected: false,
+      collected_coins: 0,
       powerup_block_hit: false,
       powerup_collected: false,
       parity: 0,
     };
     // super::with_smaller_x_pos::<Self>(super::with_left_and_right_and_lr_facing_dir(super::with_all_x_spd_subpixels(
     vec![s]
-    // )), 16)
+    // )), 0)
   }
-  const INITIAL_SEARCH_DISTANCE: Dist = 0;
+  const INITIAL_SEARCH_DISTANCE: Dist = 54;
   const SEARCH_SPACE_SIZE_HINT: usize = 10;
 }
 impl SearchGoal for W13FloorClipSpeedup {
@@ -431,7 +431,7 @@ impl super::SmbSearchCase for W13FloorFlag {
       running_timer : 10,
       left_screen_edge_pos: 0xc6,
       side_collision_timer: 0,
-      coin_collected: false,
+      collected_coins: 0,
       powerup_block_hit: false,
       powerup_collected: false,
       parity: 0,
@@ -500,7 +500,7 @@ impl super::SmbCase for EmulatorTesting {
       running_timer : 0,
       left_screen_edge_pos: 0x5,
       side_collision_timer: 0,
-      coin_collected: false,
+      collected_coins: 0,
       powerup_block_hit: false,
       powerup_collected: false,
       parity: 0,

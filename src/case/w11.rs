@@ -25,7 +25,7 @@ fn w11_start<O: Options>() -> State {
     jump_swim_timer: 0,
     running_timer: 0,
     is_crouching: false,
-    coin_collected: false,
+    collected_coins: 0,
     powerup_block_hit: false,
     powerup_collected: false,
     parity: 0,
@@ -51,7 +51,7 @@ fn w11_sub_start<O: Options>() -> State {
     jump_swim_timer: 0,
     running_timer: 0,
     is_crouching: false,
-    coin_collected: false,
+    collected_coins: 0,
     powerup_block_hit: false,
     powerup_collected: false,
     parity: 0,
@@ -77,7 +77,7 @@ fn w11_pipe_start<O: Options>() -> State {
     jump_swim_timer: 0,
     running_timer : 0,
     is_crouching: false,
-    coin_collected: false,
+    collected_coins: 0,
     powerup_block_hit: false,
     powerup_collected: false,
     parity: 0,
@@ -204,13 +204,28 @@ impl SearchGoal for W11SubSpeedup {
 }
 
 /// Start of 1-1-sub until entering side pipe
-/// Input sequence: [6x R, 1x NIL, 2x L, 3x NIL, 22x R, 1x A|L, 9x A|R, 7x R, 1x NIL, 1x B|R, 1x L, 1x A|R, 20x R, 3x B|R, 1x A, 25x R, 3x L, 1x NIL, 3x R] (len: 111)
+/// Input sequence: [6x R, 1x NIL, 2x L, 3x NIL, 22x R, 1x A|L, 9x A|R, 7x R, 1x NIL, 1x B|R, 1x L, 1x A|R, 20x R, 3x B|R, 1x A, 25x R, 3x L, 1x NIL, 3x R] (len: 111) 11 coins
+/// Input sequence: [6x R, 1x NIL, 2x L, 3x NIL, 22x R, 1x A|L, 9x A|R, 7x R, 1x NIL, 1x B|R, 1x L, 2x A|R, 21x R, 1x B|R, 1x A, 25x R, 3x L, 1x NIL, 3x R] (len: 111) 13 coins
 #[allow(dead_code)]
 pub struct W11SubSidePipeEntry {
   heuristic: BoundsHeuristic,
 }
+lazy_static! {
+  static ref W11_SUB_COINS: Vec<(usize, usize)> = { vec![(5,3),(6,3),(7,3),(8,3),(9,3),(4,5),(5,5),(6,5),(7,5),(8,5),(9,5),(10,5),(4,7),(5,7),(6,7),(7,7),(8,7),(9,7),(10,7)] };
+}
+impl CoinHandler for W11SubSidePipeEntry {
+  const COIN_HANDLER_BITS: usize = 19;
+  fn is_coin_collected(s: &State, cx: usize, cy: usize) -> bool {
+    if let Some(index) = W11_SUB_COINS.iter().position(|&(x, y)| x == cx && y == cy) {
+      s.collected_coins & (1 << index as u32) != 0
+    } else { true }
+  }
+  fn collect_coin(s: &mut State, cx: usize, cy: usize) -> () {
+    s.collected_coins |= 1 << W11_SUB_COINS.iter().position(|&(x, y)| x == cx && y == cy).unwrap() as u32;
+  }
+}
 impl Options for W11SubSidePipeEntry {
-  type CoinHandler = IgnoreCoins;
+  type CoinHandler = Self;
   type Platform = NTSC;
   type PlayerSize = Small;
   type Swim = NotSwimming;
@@ -223,18 +238,24 @@ impl Options for W11SubSidePipeEntry {
 }
 impl super::SmbSearchCase for W11SubSidePipeEntry {
   type SearchGoal = Self;
-  type StateStore = ::store::VecHashMap<CompressedState<Self, [u8; 10]>, Dist>;
+  type StateStore = ::store::VecHashMap<CompressedState<Self, [u8; 12]>, Dist>;
 
   type BlockBuffer = BB11Sub;
 
   fn start_states() -> Vec<State> {
     vec![w11_sub_start::<Self>()]
   }
-  const SEARCH_SPACE_SIZE_HINT: usize = 368488637;
+  const INITIAL_SEARCH_DISTANCE: Dist = 111;
+  const SEARCH_SPACE_SIZE_HINT: usize = 800000000; //368488637;
 }
 impl SearchGoal for W11SubSidePipeEntry {
   fn new() -> Self { Self { heuristic: BoundsHeuristic::new::<Self>(&<Self as super::SmbSearchCase>::start_states()) } }
   fn distance_to_goal_heuristic(&self, s: &mut State, _: Dist) -> Option<Dist> {
+    if s.x_pos >= 0xae00 && s.collected_coins.count_ones() < 13 { return None }
+    if s.x_pos >= 0x9e00 && s.collected_coins.count_ones() < 11 { return None }
+    if s.x_pos >= 0x8e00 && s.collected_coins.count_ones() < 9 { return None }
+    if s.x_pos >= 0x7e00 && s.collected_coins.count_ones() < 7 { return None }
+    if s.x_pos >= 0x6e00 && s.collected_coins.count_ones() < 5 { return None }
     Some(self.heuristic.get_steps_until_bounds_at_least(s, 0xc300, 0x1b000))
   }
   fn is_goal_state(&self, _: &State, emu_result: &EmuResult) -> bool {
@@ -309,32 +330,55 @@ impl super::SmbSearchCase for W11Flag {
 
   fn start_states() -> Vec<State> {
     let s = State {
-      x_pos: 0xbb490,
-      y_pos: 0x130e0,
-      x_spd: 0x28f4,
-      v_force: <Self as Options>::Platform::V_FORCE_FALL_RUNNING,
+      x_pos: 0xbd510,
+      y_pos: 0x13038,
+      x_spd: 0x2848,
       y_spd: 0x0,
-      v_force_down: <Self as Options>::Platform::V_FORCE_FALL_RUNNING,
-      facing_dir: Dir::RIGHT,
-      moving_dir: Dir::RIGHT,
       player_state: PlayerState::STANDING,
-      x_spd_abs: 33,
+      moving_dir: Dir::RIGHT,
+      facing_dir: Dir::RIGHT,
+      v_force: <Self as Options>::Platform::V_FORCE_FALL_RUNNING,
+      v_force_down: <Self as Options>::Platform::V_FORCE_FALL_RUNNING,
+      x_spd_abs: 0x21,
       running_speed: true,
       collision_bits: Dir::LR,
-      side_collision_timer: 0,
-      left_screen_edge_pos: 0x44,
-      jump_swim_timer: 21,
-      running_timer : 0,
       is_crouching: false,
-      coin_collected: false,
+      jump_swim_timer: 10,
+      running_timer : 10,
+      left_screen_edge_pos: 0x65,
+      side_collision_timer: 0,
+      collected_coins: 0,
       powerup_block_hit: false,
       powerup_collected: false,
       parity: 0,
     };
-    let s = Self::Emu::run_steps_nr(s, &[B|R; 12]);
+    // State {
+    //   x_pos: 0xbb490,
+    //   y_pos: 0x130e0,
+    //   x_spd: 0x28f4,
+    //   v_force: <Self as Options>::Platform::V_FORCE_FALL_RUNNING,
+    //   y_spd: 0x0,
+    //   v_force_down: <Self as Options>::Platform::V_FORCE_FALL_RUNNING,
+    //   facing_dir: Dir::RIGHT,
+    //   moving_dir: Dir::RIGHT,
+    //   player_state: PlayerState::STANDING,
+    //   x_spd_abs: 33,
+    //   running_speed: true,
+    //   collision_bits: Dir::LR,
+    //   side_collision_timer: 0,
+    //   left_screen_edge_pos: 0x44,
+    //   jump_swim_timer: 21,
+    //   running_timer : 0,
+    //   is_crouching: false,
+    //   collected_coins: 0,
+    //   powerup_block_hit: false,
+    //   powerup_collected: false,
+    //   parity: 0,
+    // };
+    // let s = Self::Emu::run_steps_nr(s, &[B|R; 12]);
     vec![s]
   }
-  const INITIAL_SEARCH_DISTANCE: Dist = 59;
+  // const INITIAL_SEARCH_DISTANCE: Dist = 59;
   const SEARCH_SPACE_SIZE_HINT: usize = 83848968; // initial dist 0: 165497479;
 }
 impl SearchGoal for W11Flag {

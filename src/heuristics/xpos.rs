@@ -15,7 +15,7 @@ impl XPosHeuristic {
     let mut h = XPosHeuristic {
       max_distance: HashMap::<XPosState, Vec<i32>>::new(),
       min_distance: HashMap::<XPosState, Vec<i32>>::new(),
-      max_x_distance: ((O::Platform::MAX_X_SPD_RUN >> 8) << 4) as i32,
+      max_x_distance: ((if O::Swim::IS_SWIMMING { O::Platform::MAX_X_SPD_WALK } else { O::Platform::MAX_X_SPD_RUN } >> 8) << 4) as i32,
     };
     let state_map = Self::build_state_map::<O>(initial_states.iter().map(|s| Self::to_x_pos_state(s)).collect());
     println!("total number of XPosState: {}; total size of state map: {}", state_map.len(), state_map.values().map(|v| v.len()).sum::<usize>());

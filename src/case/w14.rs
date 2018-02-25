@@ -25,7 +25,7 @@ fn w14_start<O: Options>() -> State {
     running_timer : 0,
     left_screen_edge_pos: 0x0,
     side_collision_timer: 0,
-    coin_collected: false,
+    collected_coins: 0,
     powerup_block_hit: false,
     powerup_collected: false,
     parity: 0,
@@ -116,7 +116,7 @@ impl super::SmbSearchCase for W14Powerup {
       running_timer : 0,
       left_screen_edge_pos: 0x56,
       side_collision_timer: 0,
-      coin_collected: false,
+      collected_coins: 0,
       powerup_block_hit: false,
       powerup_collected: false,
       parity: 0,
@@ -124,13 +124,13 @@ impl super::SmbSearchCase for W14Powerup {
     println!("start state {}", s);
     // super::with_smaller_x_pos::<Self>(super::with_left_and_right_facing_dir(super::with_all_x_spd_subpixels(
     vec![s]
-    // )), 0)
+    // )), 16)
   }
   const INITIAL_SEARCH_DISTANCE: Dist = 62;
   const SEARCH_SPACE_SIZE_HINT: usize = 12550052;
 }
 impl SearchGoal for W14Powerup {
-  fn new() -> Self { return Self { max_x_pos: 0x22500, h: XPosHeuristic::new::<Self>(&<Self as super::SmbSearchCase>::start_states()) }; }
+  fn new() -> Self { return Self { max_x_pos: 0x22890, h: XPosHeuristic::new::<Self>(&<Self as super::SmbSearchCase>::start_states()) }; }
   fn distance_to_goal_heuristic(&self, s: &mut State, steps_already_taken: Dist) -> Option<Dist> {
     if s.y_pos >= 0x18500 { return None } // too low
 
