@@ -17,6 +17,10 @@ macro_rules! blockbuf {
 pub mod world1;
 pub mod world2;
 pub mod world3;
+pub mod world4;
+pub mod world6;
+pub mod world7;
+pub mod world8;
 
 pub mod util {
   pub fn is_coin(cv: u8) -> bool {

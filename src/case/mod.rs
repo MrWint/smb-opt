@@ -14,6 +14,14 @@ pub mod w21;
 pub mod w22;
 pub mod w23;
 pub mod w31;
+pub mod w32;
+pub mod w33;
+pub mod w44;
+pub mod w62;
+pub mod w71;
+pub mod w73;
+pub mod w82;
+pub mod w84;
 
 #[allow(dead_code)]
 pub fn with_left_and_right_facing_dir(states: Vec<State>) -> Vec<State> {

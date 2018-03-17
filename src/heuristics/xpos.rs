@@ -28,14 +28,14 @@ impl XPosHeuristic {
     let mut stack = initial_states;
     while let Some(s) = stack.pop() {
       if state_map.contains_key(&s) { continue; }
-      let mut next_states = XPosEmu::<O>::run_step(vec![s.clone()]);
+      let mut next_states = XPosEmu::<O>::run_step(vec![s.clone()], ALLOW_SIDE_COLLISIONS);
       state_map.insert(s.clone(), next_states.clone().into_iter().map(|mut next_state| {
         let dist = next_state.x_pos - s.x_pos;
         next_state.x_pos = 0;
         (next_state, dist)
       }).collect());
       if state_map.len() % 100000 == 0 { println!("{}", state_map.len()); }
-      stack.append(&mut next_states.into_iter().map(|mut s| { s.x_pos = 0; s }).collect());
+      stack.append(&mut XPosEmu::<O>::run_step(vec![s.clone()], true).into_iter().map(|mut s| { s.x_pos = 0; s }).collect());
     }
 
     state_map
@@ -166,7 +166,7 @@ pub struct XPosEmu<O: Options> {
   _void: Void,
 }
 impl<O: Options> XPosEmu<O> {
-  fn run_step(states: Vec<XPosState>) -> HashSet<XPosState> {
+  fn run_step(states: Vec<XPosState>, allow_side_collisions: bool) -> HashSet<XPosState> {
     let states = Self::player_movement_subs(states);
 
     let states: HashSet<XPosState> = states.into_iter().map(|mut s| {
@@ -175,7 +175,7 @@ impl<O: Options> XPosEmu<O> {
       s
     }).collect();
 
-    Self::player_bg_collision(states)
+    Self::player_bg_collision(states, allow_side_collisions)
   }
   fn player_movement_subs(states: Vec<XPosState>) -> HashSet<XPosState> {
     let states = Self::maybe_start_jumping(states);
@@ -297,7 +297,7 @@ impl<O: Options> XPosEmu<O> {
   fn move_horizontally(states: HashSet<XPosState>) -> HashSet<XPosState> {
     states.into_iter().map(|mut s| { s.x_pos += (s.x_spd as i32 >> 8) << 4; s }).collect()
   }
-  fn player_bg_collision(states: HashSet<XPosState>) -> HashSet<XPosState> {
+  fn player_bg_collision(states: HashSet<XPosState>, allow_side_collisions: bool) -> HashSet<XPosState> {
     let states: HashSet<XPosState> = states.into_iter().flat_map(|s| {
       let mut landing = s.clone();
       landing.is_on_ground = true;
@@ -308,13 +308,13 @@ impl<O: Options> XPosEmu<O> {
 
     states.into_iter().flat_map(|s| {
       let mut result: Vec<XPosState> = vec![s.clone()];
-      if ALLOW_SIDE_COLLISIONS && s.x_spd >= 0 {
+      if allow_side_collisions && s.x_spd >= 0 {
         let mut collision_right = s.clone();
         collision_right.x_spd &= 0xff;
         collision_right.x_pos -= 0x100;
         result.push(collision_right);
       }
-      if ALLOW_SIDE_COLLISIONS && s.x_spd < 0x100 {
+      if allow_side_collisions && s.x_spd < 0x100 {
         let mut collision_left = s.clone();
         collision_left.x_spd &= 0xff;
         collision_left.x_pos += 0x100;

@@ -352,29 +352,6 @@ impl super::SmbSearchCase for W11Flag {
       powerup_collected: false,
       parity: 0,
     };
-    // State {
-    //   x_pos: 0xbb490,
-    //   y_pos: 0x130e0,
-    //   x_spd: 0x28f4,
-    //   v_force: <Self as Options>::Platform::V_FORCE_FALL_RUNNING,
-    //   y_spd: 0x0,
-    //   v_force_down: <Self as Options>::Platform::V_FORCE_FALL_RUNNING,
-    //   facing_dir: Dir::RIGHT,
-    //   moving_dir: Dir::RIGHT,
-    //   player_state: PlayerState::STANDING,
-    //   x_spd_abs: 33,
-    //   running_speed: true,
-    //   collision_bits: Dir::LR,
-    //   side_collision_timer: 0,
-    //   left_screen_edge_pos: 0x44,
-    //   jump_swim_timer: 21,
-    //   running_timer : 0,
-    //   is_crouching: false,
-    //   collected_coins: 0,
-    //   powerup_block_hit: false,
-    //   powerup_collected: false,
-    //   parity: 0,
-    // };
     // let s = Self::Emu::run_steps_nr(s, &[B|R; 12]);
     vec![s]
   }
@@ -389,6 +366,87 @@ impl SearchGoal for W11Flag {
   fn is_goal_state(&self, s: &State, emu_result: &EmuResult) -> bool {
     if let &EmuResult::StateChangeFlag(cx, cy) = emu_result {
       cx == 0xc6 && cy == 9 && s.y_pos >= 0x1a200 && (s.x_pos & 0xf0) >= 0x70
+    } else { false }
+  }
+}
+
+/// Stairs to half flag pole glitch
+/// Input sequence: [3x B|R, 1x A, 42x R, 2x L, 3x NIL, 2x R, 1x L, 1x NIL, 1x R, 1x A|L, 1x NIL, 1x R] (len: 59)
+#[allow(dead_code)]
+pub struct W11Flag2 {
+  heuristic: BoundsHeuristic,
+}
+impl Options for W11Flag2 {
+  type CoinHandler = IgnoreCoins;
+  type Platform = NTSC;
+  type PlayerSize = Small;
+  type Swim = NotSwimming;
+  type PowerupHandler = NoPowerups;
+  type RunningTimer = NoRunningTimer;
+  type ScrollPos = NoScrollPos;
+  type Parity = NoParity;
+  type VerticalPipeHandler = IgnoreVerticalPipes;
+  type YPosFractionalBehavior = KeepYPosFractionals;
+}
+impl super::SmbSearchCase for W11Flag2 {
+  type SearchGoal = Self;
+  type StateStore = ::store::VecHashMap<CompressedState<Self, [u8; 10]>, Dist>;
+
+  type BlockBuffer = BB11;
+
+  fn start_states() -> Vec<State> {
+    let s = State {
+      x_pos: 0xc53f0,
+      y_pos: 0x1a128,
+      x_spd: 0x2794 + 0x100,
+      y_spd: 0x400,
+      player_state: PlayerState::JUMPING,
+      moving_dir: Dir::RIGHT,
+      facing_dir: Dir::RIGHT,
+      v_force: <Self as Options>::Platform::V_FORCE_FALL_RUNNING,
+      v_force_down: <Self as Options>::Platform::V_FORCE_FALL_RUNNING,
+      x_spd_abs: 0x21,
+      running_speed: true,
+      collision_bits: Dir::LR,
+      is_crouching: false,
+      jump_swim_timer: 0,
+      running_timer : 0,
+      left_screen_edge_pos: 0xe3,
+      side_collision_timer: 0,
+      collected_coins: 0,
+      powerup_block_hit: false,
+      powerup_collected: false,
+      parity: 0,
+    };
+    super::with_smaller_x_pos::<Self>(super::with_left_and_right_and_lr_facing_dir(super::with_all_x_spd_subpixels(
+      vec![s]
+    )), 64)
+  }
+  // const INITIAL_SEARCH_DISTANCE: Dist = 59;
+  const SEARCH_SPACE_SIZE_HINT: usize = 83848968; // initial dist 0: 165497479;
+}
+impl SearchGoal for W11Flag2 {
+  fn new() -> Self { Self { heuristic: BoundsHeuristic::new::<Self>(&<Self as super::SmbSearchCase>::start_states()) } }
+  fn distance_to_goal_heuristic(&self, s: &mut State, _: Dist) -> Option<Dist> {
+    Some(self.heuristic.get_steps_until_bounds_at_least(s, 0xc5600, 0x1a200))
+  }
+  fn is_goal_state(&self, s: &State, emu_result: &EmuResult) -> bool {
+    if let &EmuResult::StateChangeFlag(cx, cy) = emu_result {
+      if cx != 0xc6 || cy != 9 || s.y_pos < 0x1a200 { return false; }
+      let mut s = s.clone();
+      s.x_spd = 0;
+      s.y_spd = 0;
+      s.y_pos &= 0xfff0ff; // align height with block
+      s.player_state = PlayerState::STANDING; // land
+      s.x_pos = 0xc6b00 + (s.x_pos & 0xff);
+      s.facing_dir = Dir::LEFT;
+      s.collision_bits = Dir::LR;
+      let mut count = 0;
+      while s.collision_bits.contains(Dir::RIGHT) {
+        s = <Self as super::SmbSearchCase>::Emu::run_step_nr(s, R);
+        count += 1;
+      }
+      count < 78
     } else { false }
   }
 }

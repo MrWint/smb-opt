@@ -468,8 +468,8 @@ impl SearchGoal for W21ScreenScrollBlock3PipeClip {
     let heuristic_steps = self.h.get_steps_until_x_pos_at_least(s, self.max_x_pos + 0x10);
     Some(heuristic_steps + if s.x_pos < 0x49a00 && s.side_collision_timer == 0 { 15 } else { 0 }) // adjust for speed loss when colliding
   }
-  fn is_goal_state(&self, s: &State, _: &EmuResult) -> bool {
-    // s.x_pos >= 0x4ec70 //0x4cd30
+  fn is_goal_state(&self, _s: &State, _: &EmuResult) -> bool {
+    // _s.x_pos >= 0x4ec70 //0x4cd30
     false
   }
   fn track_metric(&mut self, s: &State) -> () {

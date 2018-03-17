@@ -309,7 +309,7 @@ impl<O: Options, B: BlockBuffer> SmbEmu<O, B> {
     let mut cv = B::get_block_at(cx, cy);
 
     if is_coin(cv) && O::CoinHandler::is_coin_collected(&self.s, cx, cy) { cv = 0; } // ignore collected coins
-    if is_question_block(cv) && O::PowerupHandler::is_activated_powerup_block(&self.s, cx, cy) { cv = 0xc4; } // question block changed to solid block
+    if /* is_question_block(cv) && */ O::PowerupHandler::is_activated_powerup_block(&self.s, cx, cy) { cv = 0xc4; } // question block changed to solid block
     if cv == 0 { CollisionResult::NoCollision } else { CollisionResult::Collision(cv, cx, cy) }
   }
   fn player_bg_collision(&mut self) -> EmuResult {
@@ -331,7 +331,7 @@ impl<O: Options, B: BlockBuffer> SmbEmu<O, B> {
           } else if O::PlayerSize::is_big(&self.s) && !is_question_block(cv) {
             self.s.y_spd = -0x200 + (self.s.y_spd & 0xff); // shatter brick
           } else {
-            if is_question_block(cv) { O::PowerupHandler::activate_powerup_block(&mut self.s, cx, cy); }
+            /* if is_question_block(cv) */ { O::PowerupHandler::activate_powerup_block(&mut self.s, cx, cy); }
             self.s.y_spd &= 0xff; // bump block
           }
         }

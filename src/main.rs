@@ -23,7 +23,7 @@ mod store;
 
 fn main() {
   // calc_prng();
-  case::w31::W31ScreenScrollBlock3PipeClip::run();
+  case::w84::W84Part4Speedup::run();
   // case::w21::W21ScreenScrollBlock3PipeClip::run();
 }
 
